@@ -182,7 +182,7 @@ function Index() {
         onHover={sounds.hover}
       />
 
-      <main className="flex flex-1 flex-col">
+      <main className="flex flex-1 flex-col pt-[72px]">
         <div ref={scrollRef} className="flex-1">
           <div className="mx-auto w-full max-w-[1200px] px-4 pb-40 pt-8 sm:px-8 sm:pt-12">
             {messages.length === 0 ? (
@@ -241,7 +241,7 @@ function Header({
 }) {
   return (
     <header
-      className="sticky top-0 z-40 h-[72px] border-b border-white/10 backdrop-blur-xl"
+      className="fixed inset-x-0 top-0 z-40 h-[72px] border-b border-white/10 backdrop-blur-xl"
       style={{
         background: `linear-gradient(90deg, ${BRAND} 0%, ${BRAND_2} 100%)`,
         boxShadow: "0 8px 24px -12px rgba(21,36,61,0.4)",

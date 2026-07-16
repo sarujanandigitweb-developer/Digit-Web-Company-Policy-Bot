@@ -1,6 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { convertToModelMessages, streamText, type UIMessage } from "ai";
-import { resolveChatModel } from "@/lib/ai-gateway.server";
+import { type UIMessage } from "ai";
+import {
+  AllProvidersFailedError,
+  hasConfiguredProvider,
+  NoProvidersConfiguredError,
+  streamChatWithFallback,
+} from "@/lib/ai/gateway.server";
 import { fetchTranscript } from "@/lib/transcript.server";
 
 export const Route = createFileRoute("/api/chat")({
@@ -12,12 +17,8 @@ export const Route = createFileRoute("/api/chat")({
           return new Response("Messages are required", { status: 400 });
         }
 
-        const model = resolveChatModel();
-        if (!model) {
-          return new Response(
-            "No AI provider key. Set LOVABLE_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY.",
-            { status: 500 },
-          );
+        if (!hasConfiguredProvider()) {
+          return new Response(new NoProvidersConfiguredError().message, { status: 500 });
         }
 
         let transcript = "";
@@ -40,13 +41,15 @@ DOCUMENT:
 ${transcript}
 """`;
 
-        const result = streamText({
-          model,
-          system,
-          messages: convertToModelMessages(messages),
-        });
-
-        return result.toUIMessageStreamResponse({ originalMessages: messages });
+        try {
+          return await streamChatWithFallback({ system, messages });
+        } catch (e) {
+          if (e instanceof AllProvidersFailedError) {
+            console.error(`[api/chat] ${e.message}`);
+            return new Response("Every AI provider is unavailable right now.", { status: 503 });
+          }
+          throw e;
+        }
       },
     },
   },
