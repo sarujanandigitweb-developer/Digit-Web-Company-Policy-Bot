@@ -9,12 +9,64 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as LoginRouteImport } from './routes/login'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as ApiDepartmentsRouteImport } from './routes/api/departments'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminSearchRouteImport } from './routes/admin/search'
+import { Route as AdminKnowledgeGapsRouteImport } from './routes/admin/knowledge-gaps'
+import { Route as AdminKnowledgeRouteImport } from './routes/admin/knowledge'
+import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
+import { Route as AdminConversationsRouteImport } from './routes/admin/conversations'
+import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
+import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
+import { Route as ApiAdminSettingsRouteImport } from './routes/api/admin/settings'
+import { Route as ApiAdminKnowledgeRouteImport } from './routes/api/admin/knowledge'
+import { Route as ApiAdminGapsRouteImport } from './routes/api/admin/gaps'
+import { Route as ApiAdminDepartmentsRouteImport } from './routes/api/admin/departments'
+import { Route as ApiAdminConversationsRouteImport } from './routes/api/admin/conversations'
+import { Route as ApiAdminActivityRouteImport } from './routes/api/admin/activity'
+import { Route as AdminKnowledgeIdRouteImport } from './routes/admin/knowledge.$id'
+import { Route as AdminConversationsIdRouteImport } from './routes/admin/conversations.$id'
+import { Route as ApiAdminUsersIdRouteImport } from './routes/api/admin/users.$id'
+import { Route as ApiAdminSystemStatusRouteImport } from './routes/api/admin/system.status'
+import { Route as ApiAdminKnowledgeStatsRouteImport } from './routes/api/admin/knowledge.stats'
+import { Route as ApiAdminKnowledgeSearchRouteImport } from './routes/api/admin/knowledge.search'
+import { Route as ApiAdminKnowledgeIdRouteImport } from './routes/api/admin/knowledge.$id'
+import { Route as ApiAdminGapsIdRouteImport } from './routes/api/admin/gaps.$id'
+import { Route as ApiAdminDepartmentsIdRouteImport } from './routes/api/admin/departments.$id'
+import { Route as ApiAdminConversationsIdRouteImport } from './routes/api/admin/conversations.$id'
+import { Route as ApiAdminAnalyticsKnowledgeRouteImport } from './routes/api/admin/analytics.knowledge'
+import { Route as ApiAdminKnowledgeIdRetryRouteImport } from './routes/api/admin/knowledge.$id.retry'
+import { Route as ApiAdminKnowledgeIdChunksRouteImport } from './routes/api/admin/knowledge.$id.chunks'
 
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const ApiDepartmentsRoute = ApiDepartmentsRouteImport.update({
+  id: '/api/departments',
+  path: '/api/departments',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiChatRoute = ApiChatRouteImport.update({
@@ -22,40 +74,420 @@ const ApiChatRoute = ApiChatRouteImport.update({
   path: '/api/chat',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSearchRoute = AdminSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminKnowledgeGapsRoute = AdminKnowledgeGapsRouteImport.update({
+  id: '/knowledge-gaps',
+  path: '/knowledge-gaps',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminKnowledgeRoute = AdminKnowledgeRouteImport.update({
+  id: '/knowledge',
+  path: '/knowledge',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
+  id: '/departments',
+  path: '/departments',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminConversationsRoute = AdminConversationsRouteImport.update({
+  id: '/conversations',
+  path: '/conversations',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
+  getParentRoute: () => AdminRoute,
+} as any)
+const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
+  id: '/api/admin/users',
+  path: '/api/admin/users',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminSettingsRoute = ApiAdminSettingsRouteImport.update({
+  id: '/api/admin/settings',
+  path: '/api/admin/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminKnowledgeRoute = ApiAdminKnowledgeRouteImport.update({
+  id: '/api/admin/knowledge',
+  path: '/api/admin/knowledge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminGapsRoute = ApiAdminGapsRouteImport.update({
+  id: '/api/admin/gaps',
+  path: '/api/admin/gaps',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminDepartmentsRoute = ApiAdminDepartmentsRouteImport.update({
+  id: '/api/admin/departments',
+  path: '/api/admin/departments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminConversationsRoute = ApiAdminConversationsRouteImport.update({
+  id: '/api/admin/conversations',
+  path: '/api/admin/conversations',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminActivityRoute = ApiAdminActivityRouteImport.update({
+  id: '/api/admin/activity',
+  path: '/api/admin/activity',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminKnowledgeIdRoute = AdminKnowledgeIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminKnowledgeRoute,
+} as any)
+const AdminConversationsIdRoute = AdminConversationsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => AdminConversationsRoute,
+} as any)
+const ApiAdminUsersIdRoute = ApiAdminUsersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAdminUsersRoute,
+} as any)
+const ApiAdminSystemStatusRoute = ApiAdminSystemStatusRouteImport.update({
+  id: '/api/admin/system/status',
+  path: '/api/admin/system/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminKnowledgeStatsRoute = ApiAdminKnowledgeStatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => ApiAdminKnowledgeRoute,
+} as any)
+const ApiAdminKnowledgeSearchRoute = ApiAdminKnowledgeSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => ApiAdminKnowledgeRoute,
+} as any)
+const ApiAdminKnowledgeIdRoute = ApiAdminKnowledgeIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAdminKnowledgeRoute,
+} as any)
+const ApiAdminGapsIdRoute = ApiAdminGapsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAdminGapsRoute,
+} as any)
+const ApiAdminDepartmentsIdRoute = ApiAdminDepartmentsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAdminDepartmentsRoute,
+} as any)
+const ApiAdminConversationsIdRoute = ApiAdminConversationsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAdminConversationsRoute,
+} as any)
+const ApiAdminAnalyticsKnowledgeRoute =
+  ApiAdminAnalyticsKnowledgeRouteImport.update({
+    id: '/api/admin/analytics/knowledge',
+    path: '/api/admin/analytics/knowledge',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiAdminKnowledgeIdRetryRoute =
+  ApiAdminKnowledgeIdRetryRouteImport.update({
+    id: '/retry',
+    path: '/retry',
+    getParentRoute: () => ApiAdminKnowledgeIdRoute,
+  } as any)
+const ApiAdminKnowledgeIdChunksRoute =
+  ApiAdminKnowledgeIdChunksRouteImport.update({
+    id: '/chunks',
+    path: '/chunks',
+    getParentRoute: () => ApiAdminKnowledgeIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/login': typeof LoginRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/conversations': typeof AdminConversationsRouteWithChildren
+  '/admin/departments': typeof AdminDepartmentsRoute
+  '/admin/knowledge': typeof AdminKnowledgeRouteWithChildren
+  '/admin/knowledge-gaps': typeof AdminKnowledgeGapsRoute
+  '/admin/search': typeof AdminSearchRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/departments': typeof ApiDepartmentsRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/conversations/$id': typeof AdminConversationsIdRoute
+  '/admin/knowledge/$id': typeof AdminKnowledgeIdRoute
+  '/api/admin/activity': typeof ApiAdminActivityRoute
+  '/api/admin/conversations': typeof ApiAdminConversationsRouteWithChildren
+  '/api/admin/departments': typeof ApiAdminDepartmentsRouteWithChildren
+  '/api/admin/gaps': typeof ApiAdminGapsRouteWithChildren
+  '/api/admin/knowledge': typeof ApiAdminKnowledgeRouteWithChildren
+  '/api/admin/settings': typeof ApiAdminSettingsRoute
+  '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
+  '/api/admin/analytics/knowledge': typeof ApiAdminAnalyticsKnowledgeRoute
+  '/api/admin/conversations/$id': typeof ApiAdminConversationsIdRoute
+  '/api/admin/departments/$id': typeof ApiAdminDepartmentsIdRoute
+  '/api/admin/gaps/$id': typeof ApiAdminGapsIdRoute
+  '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
+  '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
+  '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
+  '/api/admin/system/status': typeof ApiAdminSystemStatusRoute
+  '/api/admin/users/$id': typeof ApiAdminUsersIdRoute
+  '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
+  '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/login': typeof LoginRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/conversations': typeof AdminConversationsRouteWithChildren
+  '/admin/departments': typeof AdminDepartmentsRoute
+  '/admin/knowledge': typeof AdminKnowledgeRouteWithChildren
+  '/admin/knowledge-gaps': typeof AdminKnowledgeGapsRoute
+  '/admin/search': typeof AdminSearchRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/departments': typeof ApiDepartmentsRoute
+  '/admin': typeof AdminIndexRoute
+  '/admin/conversations/$id': typeof AdminConversationsIdRoute
+  '/admin/knowledge/$id': typeof AdminKnowledgeIdRoute
+  '/api/admin/activity': typeof ApiAdminActivityRoute
+  '/api/admin/conversations': typeof ApiAdminConversationsRouteWithChildren
+  '/api/admin/departments': typeof ApiAdminDepartmentsRouteWithChildren
+  '/api/admin/gaps': typeof ApiAdminGapsRouteWithChildren
+  '/api/admin/knowledge': typeof ApiAdminKnowledgeRouteWithChildren
+  '/api/admin/settings': typeof ApiAdminSettingsRoute
+  '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
+  '/api/admin/analytics/knowledge': typeof ApiAdminAnalyticsKnowledgeRoute
+  '/api/admin/conversations/$id': typeof ApiAdminConversationsIdRoute
+  '/api/admin/departments/$id': typeof ApiAdminDepartmentsIdRoute
+  '/api/admin/gaps/$id': typeof ApiAdminGapsIdRoute
+  '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
+  '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
+  '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
+  '/api/admin/system/status': typeof ApiAdminSystemStatusRoute
+  '/api/admin/users/$id': typeof ApiAdminUsersIdRoute
+  '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
+  '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/admin': typeof AdminRouteWithChildren
+  '/login': typeof LoginRoute
+  '/admin/analytics': typeof AdminAnalyticsRoute
+  '/admin/conversations': typeof AdminConversationsRouteWithChildren
+  '/admin/departments': typeof AdminDepartmentsRoute
+  '/admin/knowledge': typeof AdminKnowledgeRouteWithChildren
+  '/admin/knowledge-gaps': typeof AdminKnowledgeGapsRoute
+  '/admin/search': typeof AdminSearchRoute
+  '/admin/settings': typeof AdminSettingsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/api/chat': typeof ApiChatRoute
+  '/api/departments': typeof ApiDepartmentsRoute
+  '/admin/': typeof AdminIndexRoute
+  '/admin/conversations/$id': typeof AdminConversationsIdRoute
+  '/admin/knowledge/$id': typeof AdminKnowledgeIdRoute
+  '/api/admin/activity': typeof ApiAdminActivityRoute
+  '/api/admin/conversations': typeof ApiAdminConversationsRouteWithChildren
+  '/api/admin/departments': typeof ApiAdminDepartmentsRouteWithChildren
+  '/api/admin/gaps': typeof ApiAdminGapsRouteWithChildren
+  '/api/admin/knowledge': typeof ApiAdminKnowledgeRouteWithChildren
+  '/api/admin/settings': typeof ApiAdminSettingsRoute
+  '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
+  '/api/admin/analytics/knowledge': typeof ApiAdminAnalyticsKnowledgeRoute
+  '/api/admin/conversations/$id': typeof ApiAdminConversationsIdRoute
+  '/api/admin/departments/$id': typeof ApiAdminDepartmentsIdRoute
+  '/api/admin/gaps/$id': typeof ApiAdminGapsIdRoute
+  '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
+  '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
+  '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
+  '/api/admin/system/status': typeof ApiAdminSystemStatusRoute
+  '/api/admin/users/$id': typeof ApiAdminUsersIdRoute
+  '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
+  '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/api/chat'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/admin/analytics'
+    | '/admin/conversations'
+    | '/admin/departments'
+    | '/admin/knowledge'
+    | '/admin/knowledge-gaps'
+    | '/admin/search'
+    | '/admin/settings'
+    | '/admin/users'
+    | '/api/chat'
+    | '/api/departments'
+    | '/admin/'
+    | '/admin/conversations/$id'
+    | '/admin/knowledge/$id'
+    | '/api/admin/activity'
+    | '/api/admin/conversations'
+    | '/api/admin/departments'
+    | '/api/admin/gaps'
+    | '/api/admin/knowledge'
+    | '/api/admin/settings'
+    | '/api/admin/users'
+    | '/api/admin/analytics/knowledge'
+    | '/api/admin/conversations/$id'
+    | '/api/admin/departments/$id'
+    | '/api/admin/gaps/$id'
+    | '/api/admin/knowledge/$id'
+    | '/api/admin/knowledge/search'
+    | '/api/admin/knowledge/stats'
+    | '/api/admin/system/status'
+    | '/api/admin/users/$id'
+    | '/api/admin/knowledge/$id/chunks'
+    | '/api/admin/knowledge/$id/retry'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/api/chat'
-  id: '__root__' | '/' | '/api/chat'
+  to:
+    | '/'
+    | '/login'
+    | '/admin/analytics'
+    | '/admin/conversations'
+    | '/admin/departments'
+    | '/admin/knowledge'
+    | '/admin/knowledge-gaps'
+    | '/admin/search'
+    | '/admin/settings'
+    | '/admin/users'
+    | '/api/chat'
+    | '/api/departments'
+    | '/admin'
+    | '/admin/conversations/$id'
+    | '/admin/knowledge/$id'
+    | '/api/admin/activity'
+    | '/api/admin/conversations'
+    | '/api/admin/departments'
+    | '/api/admin/gaps'
+    | '/api/admin/knowledge'
+    | '/api/admin/settings'
+    | '/api/admin/users'
+    | '/api/admin/analytics/knowledge'
+    | '/api/admin/conversations/$id'
+    | '/api/admin/departments/$id'
+    | '/api/admin/gaps/$id'
+    | '/api/admin/knowledge/$id'
+    | '/api/admin/knowledge/search'
+    | '/api/admin/knowledge/stats'
+    | '/api/admin/system/status'
+    | '/api/admin/users/$id'
+    | '/api/admin/knowledge/$id/chunks'
+    | '/api/admin/knowledge/$id/retry'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/login'
+    | '/admin/analytics'
+    | '/admin/conversations'
+    | '/admin/departments'
+    | '/admin/knowledge'
+    | '/admin/knowledge-gaps'
+    | '/admin/search'
+    | '/admin/settings'
+    | '/admin/users'
+    | '/api/chat'
+    | '/api/departments'
+    | '/admin/'
+    | '/admin/conversations/$id'
+    | '/admin/knowledge/$id'
+    | '/api/admin/activity'
+    | '/api/admin/conversations'
+    | '/api/admin/departments'
+    | '/api/admin/gaps'
+    | '/api/admin/knowledge'
+    | '/api/admin/settings'
+    | '/api/admin/users'
+    | '/api/admin/analytics/knowledge'
+    | '/api/admin/conversations/$id'
+    | '/api/admin/departments/$id'
+    | '/api/admin/gaps/$id'
+    | '/api/admin/knowledge/$id'
+    | '/api/admin/knowledge/search'
+    | '/api/admin/knowledge/stats'
+    | '/api/admin/system/status'
+    | '/api/admin/users/$id'
+    | '/api/admin/knowledge/$id/chunks'
+    | '/api/admin/knowledge/$id/retry'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  AdminRoute: typeof AdminRouteWithChildren
+  LoginRoute: typeof LoginRoute
   ApiChatRoute: typeof ApiChatRoute
+  ApiDepartmentsRoute: typeof ApiDepartmentsRoute
+  ApiAdminActivityRoute: typeof ApiAdminActivityRoute
+  ApiAdminConversationsRoute: typeof ApiAdminConversationsRouteWithChildren
+  ApiAdminDepartmentsRoute: typeof ApiAdminDepartmentsRouteWithChildren
+  ApiAdminGapsRoute: typeof ApiAdminGapsRouteWithChildren
+  ApiAdminKnowledgeRoute: typeof ApiAdminKnowledgeRouteWithChildren
+  ApiAdminSettingsRoute: typeof ApiAdminSettingsRoute
+  ApiAdminUsersRoute: typeof ApiAdminUsersRouteWithChildren
+  ApiAdminAnalyticsKnowledgeRoute: typeof ApiAdminAnalyticsKnowledgeRoute
+  ApiAdminSystemStatusRoute: typeof ApiAdminSystemStatusRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/': {
       id: '/'
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof IndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/api/departments': {
+      id: '/api/departments'
+      path: '/api/departments'
+      fullPath: '/api/departments'
+      preLoaderRoute: typeof ApiDepartmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/chat': {
@@ -65,12 +497,345 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiChatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/search': {
+      id: '/admin/search'
+      path: '/search'
+      fullPath: '/admin/search'
+      preLoaderRoute: typeof AdminSearchRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/knowledge-gaps': {
+      id: '/admin/knowledge-gaps'
+      path: '/knowledge-gaps'
+      fullPath: '/admin/knowledge-gaps'
+      preLoaderRoute: typeof AdminKnowledgeGapsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/knowledge': {
+      id: '/admin/knowledge'
+      path: '/knowledge'
+      fullPath: '/admin/knowledge'
+      preLoaderRoute: typeof AdminKnowledgeRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/departments': {
+      id: '/admin/departments'
+      path: '/departments'
+      fullPath: '/admin/departments'
+      preLoaderRoute: typeof AdminDepartmentsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/conversations': {
+      id: '/admin/conversations'
+      path: '/conversations'
+      fullPath: '/admin/conversations'
+      preLoaderRoute: typeof AdminConversationsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/api/admin/users': {
+      id: '/api/admin/users'
+      path: '/api/admin/users'
+      fullPath: '/api/admin/users'
+      preLoaderRoute: typeof ApiAdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/settings': {
+      id: '/api/admin/settings'
+      path: '/api/admin/settings'
+      fullPath: '/api/admin/settings'
+      preLoaderRoute: typeof ApiAdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/knowledge': {
+      id: '/api/admin/knowledge'
+      path: '/api/admin/knowledge'
+      fullPath: '/api/admin/knowledge'
+      preLoaderRoute: typeof ApiAdminKnowledgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/gaps': {
+      id: '/api/admin/gaps'
+      path: '/api/admin/gaps'
+      fullPath: '/api/admin/gaps'
+      preLoaderRoute: typeof ApiAdminGapsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/departments': {
+      id: '/api/admin/departments'
+      path: '/api/admin/departments'
+      fullPath: '/api/admin/departments'
+      preLoaderRoute: typeof ApiAdminDepartmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/conversations': {
+      id: '/api/admin/conversations'
+      path: '/api/admin/conversations'
+      fullPath: '/api/admin/conversations'
+      preLoaderRoute: typeof ApiAdminConversationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/activity': {
+      id: '/api/admin/activity'
+      path: '/api/admin/activity'
+      fullPath: '/api/admin/activity'
+      preLoaderRoute: typeof ApiAdminActivityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/knowledge/$id': {
+      id: '/admin/knowledge/$id'
+      path: '/$id'
+      fullPath: '/admin/knowledge/$id'
+      preLoaderRoute: typeof AdminKnowledgeIdRouteImport
+      parentRoute: typeof AdminKnowledgeRoute
+    }
+    '/admin/conversations/$id': {
+      id: '/admin/conversations/$id'
+      path: '/$id'
+      fullPath: '/admin/conversations/$id'
+      preLoaderRoute: typeof AdminConversationsIdRouteImport
+      parentRoute: typeof AdminConversationsRoute
+    }
+    '/api/admin/users/$id': {
+      id: '/api/admin/users/$id'
+      path: '/$id'
+      fullPath: '/api/admin/users/$id'
+      preLoaderRoute: typeof ApiAdminUsersIdRouteImport
+      parentRoute: typeof ApiAdminUsersRoute
+    }
+    '/api/admin/system/status': {
+      id: '/api/admin/system/status'
+      path: '/api/admin/system/status'
+      fullPath: '/api/admin/system/status'
+      preLoaderRoute: typeof ApiAdminSystemStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/knowledge/stats': {
+      id: '/api/admin/knowledge/stats'
+      path: '/stats'
+      fullPath: '/api/admin/knowledge/stats'
+      preLoaderRoute: typeof ApiAdminKnowledgeStatsRouteImport
+      parentRoute: typeof ApiAdminKnowledgeRoute
+    }
+    '/api/admin/knowledge/search': {
+      id: '/api/admin/knowledge/search'
+      path: '/search'
+      fullPath: '/api/admin/knowledge/search'
+      preLoaderRoute: typeof ApiAdminKnowledgeSearchRouteImport
+      parentRoute: typeof ApiAdminKnowledgeRoute
+    }
+    '/api/admin/knowledge/$id': {
+      id: '/api/admin/knowledge/$id'
+      path: '/$id'
+      fullPath: '/api/admin/knowledge/$id'
+      preLoaderRoute: typeof ApiAdminKnowledgeIdRouteImport
+      parentRoute: typeof ApiAdminKnowledgeRoute
+    }
+    '/api/admin/gaps/$id': {
+      id: '/api/admin/gaps/$id'
+      path: '/$id'
+      fullPath: '/api/admin/gaps/$id'
+      preLoaderRoute: typeof ApiAdminGapsIdRouteImport
+      parentRoute: typeof ApiAdminGapsRoute
+    }
+    '/api/admin/departments/$id': {
+      id: '/api/admin/departments/$id'
+      path: '/$id'
+      fullPath: '/api/admin/departments/$id'
+      preLoaderRoute: typeof ApiAdminDepartmentsIdRouteImport
+      parentRoute: typeof ApiAdminDepartmentsRoute
+    }
+    '/api/admin/conversations/$id': {
+      id: '/api/admin/conversations/$id'
+      path: '/$id'
+      fullPath: '/api/admin/conversations/$id'
+      preLoaderRoute: typeof ApiAdminConversationsIdRouteImport
+      parentRoute: typeof ApiAdminConversationsRoute
+    }
+    '/api/admin/analytics/knowledge': {
+      id: '/api/admin/analytics/knowledge'
+      path: '/api/admin/analytics/knowledge'
+      fullPath: '/api/admin/analytics/knowledge'
+      preLoaderRoute: typeof ApiAdminAnalyticsKnowledgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/knowledge/$id/retry': {
+      id: '/api/admin/knowledge/$id/retry'
+      path: '/retry'
+      fullPath: '/api/admin/knowledge/$id/retry'
+      preLoaderRoute: typeof ApiAdminKnowledgeIdRetryRouteImport
+      parentRoute: typeof ApiAdminKnowledgeIdRoute
+    }
+    '/api/admin/knowledge/$id/chunks': {
+      id: '/api/admin/knowledge/$id/chunks'
+      path: '/chunks'
+      fullPath: '/api/admin/knowledge/$id/chunks'
+      preLoaderRoute: typeof ApiAdminKnowledgeIdChunksRouteImport
+      parentRoute: typeof ApiAdminKnowledgeIdRoute
+    }
   }
 }
 
+interface AdminConversationsRouteChildren {
+  AdminConversationsIdRoute: typeof AdminConversationsIdRoute
+}
+
+const AdminConversationsRouteChildren: AdminConversationsRouteChildren = {
+  AdminConversationsIdRoute: AdminConversationsIdRoute,
+}
+
+const AdminConversationsRouteWithChildren =
+  AdminConversationsRoute._addFileChildren(AdminConversationsRouteChildren)
+
+interface AdminKnowledgeRouteChildren {
+  AdminKnowledgeIdRoute: typeof AdminKnowledgeIdRoute
+}
+
+const AdminKnowledgeRouteChildren: AdminKnowledgeRouteChildren = {
+  AdminKnowledgeIdRoute: AdminKnowledgeIdRoute,
+}
+
+const AdminKnowledgeRouteWithChildren = AdminKnowledgeRoute._addFileChildren(
+  AdminKnowledgeRouteChildren,
+)
+
+interface AdminRouteChildren {
+  AdminAnalyticsRoute: typeof AdminAnalyticsRoute
+  AdminConversationsRoute: typeof AdminConversationsRouteWithChildren
+  AdminDepartmentsRoute: typeof AdminDepartmentsRoute
+  AdminKnowledgeRoute: typeof AdminKnowledgeRouteWithChildren
+  AdminKnowledgeGapsRoute: typeof AdminKnowledgeGapsRoute
+  AdminSearchRoute: typeof AdminSearchRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAnalyticsRoute: AdminAnalyticsRoute,
+  AdminConversationsRoute: AdminConversationsRouteWithChildren,
+  AdminDepartmentsRoute: AdminDepartmentsRoute,
+  AdminKnowledgeRoute: AdminKnowledgeRouteWithChildren,
+  AdminKnowledgeGapsRoute: AdminKnowledgeGapsRoute,
+  AdminSearchRoute: AdminSearchRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
+interface ApiAdminConversationsRouteChildren {
+  ApiAdminConversationsIdRoute: typeof ApiAdminConversationsIdRoute
+}
+
+const ApiAdminConversationsRouteChildren: ApiAdminConversationsRouteChildren = {
+  ApiAdminConversationsIdRoute: ApiAdminConversationsIdRoute,
+}
+
+const ApiAdminConversationsRouteWithChildren =
+  ApiAdminConversationsRoute._addFileChildren(
+    ApiAdminConversationsRouteChildren,
+  )
+
+interface ApiAdminDepartmentsRouteChildren {
+  ApiAdminDepartmentsIdRoute: typeof ApiAdminDepartmentsIdRoute
+}
+
+const ApiAdminDepartmentsRouteChildren: ApiAdminDepartmentsRouteChildren = {
+  ApiAdminDepartmentsIdRoute: ApiAdminDepartmentsIdRoute,
+}
+
+const ApiAdminDepartmentsRouteWithChildren =
+  ApiAdminDepartmentsRoute._addFileChildren(ApiAdminDepartmentsRouteChildren)
+
+interface ApiAdminGapsRouteChildren {
+  ApiAdminGapsIdRoute: typeof ApiAdminGapsIdRoute
+}
+
+const ApiAdminGapsRouteChildren: ApiAdminGapsRouteChildren = {
+  ApiAdminGapsIdRoute: ApiAdminGapsIdRoute,
+}
+
+const ApiAdminGapsRouteWithChildren = ApiAdminGapsRoute._addFileChildren(
+  ApiAdminGapsRouteChildren,
+)
+
+interface ApiAdminKnowledgeIdRouteChildren {
+  ApiAdminKnowledgeIdChunksRoute: typeof ApiAdminKnowledgeIdChunksRoute
+  ApiAdminKnowledgeIdRetryRoute: typeof ApiAdminKnowledgeIdRetryRoute
+}
+
+const ApiAdminKnowledgeIdRouteChildren: ApiAdminKnowledgeIdRouteChildren = {
+  ApiAdminKnowledgeIdChunksRoute: ApiAdminKnowledgeIdChunksRoute,
+  ApiAdminKnowledgeIdRetryRoute: ApiAdminKnowledgeIdRetryRoute,
+}
+
+const ApiAdminKnowledgeIdRouteWithChildren =
+  ApiAdminKnowledgeIdRoute._addFileChildren(ApiAdminKnowledgeIdRouteChildren)
+
+interface ApiAdminKnowledgeRouteChildren {
+  ApiAdminKnowledgeIdRoute: typeof ApiAdminKnowledgeIdRouteWithChildren
+  ApiAdminKnowledgeSearchRoute: typeof ApiAdminKnowledgeSearchRoute
+  ApiAdminKnowledgeStatsRoute: typeof ApiAdminKnowledgeStatsRoute
+}
+
+const ApiAdminKnowledgeRouteChildren: ApiAdminKnowledgeRouteChildren = {
+  ApiAdminKnowledgeIdRoute: ApiAdminKnowledgeIdRouteWithChildren,
+  ApiAdminKnowledgeSearchRoute: ApiAdminKnowledgeSearchRoute,
+  ApiAdminKnowledgeStatsRoute: ApiAdminKnowledgeStatsRoute,
+}
+
+const ApiAdminKnowledgeRouteWithChildren =
+  ApiAdminKnowledgeRoute._addFileChildren(ApiAdminKnowledgeRouteChildren)
+
+interface ApiAdminUsersRouteChildren {
+  ApiAdminUsersIdRoute: typeof ApiAdminUsersIdRoute
+}
+
+const ApiAdminUsersRouteChildren: ApiAdminUsersRouteChildren = {
+  ApiAdminUsersIdRoute: ApiAdminUsersIdRoute,
+}
+
+const ApiAdminUsersRouteWithChildren = ApiAdminUsersRoute._addFileChildren(
+  ApiAdminUsersRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  AdminRoute: AdminRouteWithChildren,
+  LoginRoute: LoginRoute,
   ApiChatRoute: ApiChatRoute,
+  ApiDepartmentsRoute: ApiDepartmentsRoute,
+  ApiAdminActivityRoute: ApiAdminActivityRoute,
+  ApiAdminConversationsRoute: ApiAdminConversationsRouteWithChildren,
+  ApiAdminDepartmentsRoute: ApiAdminDepartmentsRouteWithChildren,
+  ApiAdminGapsRoute: ApiAdminGapsRouteWithChildren,
+  ApiAdminKnowledgeRoute: ApiAdminKnowledgeRouteWithChildren,
+  ApiAdminSettingsRoute: ApiAdminSettingsRoute,
+  ApiAdminUsersRoute: ApiAdminUsersRouteWithChildren,
+  ApiAdminAnalyticsKnowledgeRoute: ApiAdminAnalyticsKnowledgeRoute,
+  ApiAdminSystemStatusRoute: ApiAdminSystemStatusRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

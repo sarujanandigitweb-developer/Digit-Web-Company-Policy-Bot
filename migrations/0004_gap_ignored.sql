@@ -1,0 +1,12 @@
+-- 0004_gap_ignored.sql — adds the 'ignored' gap status.
+--
+-- The admin UI offers four outcomes for a knowledge gap: Open, Reviewing,
+-- Resolved and Ignored. The first three already map onto pending/reviewed/
+-- resolved; 'ignored' is for questions that are genuinely out of scope, which
+-- must be distinguishable from "resolved" (fixed) and from "pending" (still to
+-- triage) or the queue never drains.
+--
+-- Not wrapped in a transaction: ALTER TYPE ... ADD VALUE cannot be used by later
+-- statements in the same transaction. Idempotent, so it is safe to re-run.
+--   psql "$DATABASE_URL_UNPOOLED" -v ON_ERROR_STOP=1 -f migrations/0004_gap_ignored.sql
+ALTER TYPE gap_status ADD VALUE IF NOT EXISTS 'ignored' AFTER 'resolved';

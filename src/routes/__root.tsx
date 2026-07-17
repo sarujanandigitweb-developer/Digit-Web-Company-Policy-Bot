@@ -1,3 +1,4 @@
+import { Toaster } from "@/components/ui/sonner";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   Outlet,
@@ -115,6 +116,8 @@ function RootShell({ children }: { children: ReactNode }) {
       </head>
       <body>
         {children}
+        {/* Mounted once here so any page can call toast() without its own provider. */}
+        <Toaster position="top-right" richColors closeButton />
         <Scripts />
       </body>
     </html>

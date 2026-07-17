@@ -1,5 +1,4 @@
-const DOC_URL =
-  "https://drive.google.com/uc?export=download&id=1T-0vewRXsK88rz_yBN7yQdPoEJYL9wLt";
+const DOC_URL = "https://drive.google.com/uc?export=download&id=1T-0vewRXsK88rz_yBN7yQdPoEJYL9wLt";
 
 let cache: { text: string; at: number } | null = null;
 const TTL_MS = 5 * 60 * 1000;

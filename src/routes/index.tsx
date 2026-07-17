@@ -27,15 +27,15 @@ const BRAND_2 = "#22375f";
 const SUGGESTIONS = [
   { icon: "🌴", title: "Leave policy", q: "What is the company's leave policy?" },
   { icon: "🕒", title: "Working hours", q: "What are the working hours?" },
-  { icon: "🛡️", title: "Harassment complaints", q: "How does the company handle harassment complaints?" },
+  {
+    icon: "🛡️",
+    title: "Harassment complaints",
+    q: "How does the company handle harassment complaints?",
+  },
   { icon: "📘", title: "Code of conduct", q: "What is the code of conduct?" },
 ];
 
-const THINKING_PHASES = [
-  "Analyzing policy…",
-  "Searching knowledge…",
-  "Preparing answer…",
-];
+const THINKING_PHASES = ["Analyzing policy…", "Searching knowledge…", "Preparing answer…"];
 
 /* ---------- sound engine (WebAudio, no assets) ---------- */
 function useSounds(enabled: boolean) {
@@ -116,11 +116,40 @@ function Index() {
   const [input, setInput] = useState("");
   const [dark, setDark] = useState(false);
   const [sound, setSound] = useState(false);
+  const [department, setDepartment] = useState("all");
+  const [departments, setDepartments] = useState<{ slug: string; name: string }[]>([]);
   const sounds = useSounds(sound);
   const reduce = useReducedMotion();
 
+  // Only departments with active documents are offered — see /api/departments.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/departments")
+      .then((r) => (r.ok ? r.json() : { items: [] }))
+      .then((d) => {
+        if (!cancelled) setDepartments(d.items ?? []);
+      })
+      .catch(() => {
+        /* picker just stays on "All departments" */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  // The selected department rides along with every request. Read from a ref so
+  // changing it mid-conversation applies to the next question without
+  // re-creating the transport (which would drop the in-flight stream).
+  const departmentRef = useRef(department);
+  departmentRef.current = department;
+
   const { messages, sendMessage, status, error, setMessages } = useChat({
-    transport: new DefaultChatTransport({ api: "/api/chat" }),
+    transport: new DefaultChatTransport({
+      api: "/api/chat",
+      prepareSendMessagesRequest: ({ messages, body }) => ({
+        body: { ...body, messages, departmentId: departmentRef.current },
+      }),
+    }),
   });
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -180,6 +209,9 @@ function Index() {
         setSound={setSound}
         onNewChat={newChat}
         onHover={sounds.hover}
+        department={department}
+        setDepartment={setDepartment}
+        departments={departments}
       />
 
       <main className="flex flex-1 flex-col pt-[72px]">
@@ -231,6 +263,9 @@ function Header({
   setSound,
   onNewChat,
   onHover,
+  department,
+  setDepartment,
+  departments,
 }: {
   dark: boolean;
   setDark: (v: boolean) => void;
@@ -238,6 +273,9 @@ function Header({
   setSound: (v: boolean) => void;
   onNewChat: () => void;
   onHover: () => void;
+  department: string;
+  setDepartment: (v: string) => void;
+  departments: { slug: string; name: string }[];
 }) {
   return (
     <header
@@ -257,7 +295,8 @@ function Header({
             className="flex h-11 w-11 items-center justify-center rounded-xl text-xl font-black text-white shadow-lg"
             style={{
               background: "linear-gradient(135deg, #2b4a82 0%, #15243D 100%)",
-              boxShadow: "0 6px 18px -4px rgba(43,74,130,0.6), inset 0 1px 0 rgba(255,255,255,0.15)",
+              boxShadow:
+                "0 6px 18px -4px rgba(43,74,130,0.6), inset 0 1px 0 rgba(255,255,255,0.15)",
             }}
           >
             D
@@ -271,12 +310,29 @@ function Header({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          <div className="hidden items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/85 md:flex">
-            <span className="relative flex h-2 w-2">
+          {/* Replaces the static "Knowledge Base Connected" pill: the same shape,
+              but it now says which knowledge is actually being searched. */}
+          <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/85">
+            <span className="relative flex h-2 w-2" aria-hidden="true">
               <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
               <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
             </span>
-            Knowledge Base Connected
+            <label htmlFor="department" className="sr-only">
+              Search which department
+            </label>
+            <select
+              id="department"
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              className="cursor-pointer border-0 bg-transparent pr-1 text-xs text-white/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 [&>option]:text-slate-900"
+            >
+              <option value="all">All departments</option>
+              {departments.map((d) => (
+                <option key={d.slug} value={d.slug}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
           </div>
           <IconBtn onClick={() => setSound(!sound)} onHover={onHover} label="Toggle sound">
             {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
@@ -353,7 +409,8 @@ function Welcome({ onPick, onHover }: { onPick: (q: string) => void; onHover: ()
         <span className="ml-0.5 inline-block w-[2px] animate-pulse bg-slate-400">&nbsp;</span>
       </div>
       <p className="mt-4 max-w-md text-sm text-slate-500 dark:text-slate-400">
-        Ask anything about Digit Web Lanka policies. Every answer is grounded in the official manual.
+        Ask anything about Digit Web Lanka policies. Every answer is grounded in the official
+        manual.
       </p>
 
       <div className="mt-10 grid w-full gap-3 sm:grid-cols-2">
@@ -383,13 +440,7 @@ function Welcome({ onPick, onHover }: { onPick: (q: string) => void; onHover: ()
 }
 
 /* ---------- messages ---------- */
-function MessageBubble({
-  message,
-  isStreaming,
-}: {
-  message: UIMessage;
-  isStreaming: boolean;
-}) {
+function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreaming: boolean }) {
   const isUser = message.role === "user";
   const text = renderText(message);
   const shown = useTypewriter(text, !isUser && isStreaming);
@@ -579,9 +630,7 @@ function Composer({
             aria-label="Send"
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-white transition disabled:cursor-not-allowed"
             style={{
-              background: canSend
-                ? `linear-gradient(135deg, #2b6cf3 0%, #1e4fd6 100%)`
-                : "#cbd5e1",
+              background: canSend ? `linear-gradient(135deg, #2b6cf3 0%, #1e4fd6 100%)` : "#cbd5e1",
               boxShadow: canSend ? "0 8px 20px -8px rgba(43,108,243,0.6)" : "none",
             }}
           >
@@ -589,7 +638,8 @@ function Composer({
           </motion.button>
         </form>
         <p className="mt-2 text-center text-[11px] text-slate-400 dark:text-slate-500">
-          Answers grounded in the DIGIT WEB LANKA policy manual · Enter to send · Shift+Enter for newline
+          Answers grounded in the DIGIT WEB LANKA policy manual · Enter to send · Shift+Enter for
+          newline
         </p>
       </div>
     </div>
@@ -644,11 +694,7 @@ function BlobBackground({ reduce }: { reduce: boolean }) {
             background: b.c,
             opacity: 0.05,
           }}
-          animate={
-            reduce
-              ? undefined
-              : { x: [0, 30, -20, 0], y: [0, -20, 25, 0] }
-          }
+          animate={reduce ? undefined : { x: [0, 30, -20, 0], y: [0, -20, 25, 0] }}
           transition={{ duration: 20 + i * 4, repeat: Infinity, ease: "easeInOut" }}
         />
       ))}
