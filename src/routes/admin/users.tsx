@@ -4,9 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
   Ban,
+  Building2,
   CheckCircle2,
   Loader2,
+  MoreVertical,
   Plus,
+  ShieldCheck,
   Trash2,
   UserPen,
   Users as UsersIcon,
@@ -33,6 +36,13 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select,
   SelectContent,
   SelectItem,
@@ -40,11 +50,12 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { api, ApiError, qs, type AdminUser, type Department, type Paged } from "@/lib/api/client";
-import { DataTable, type Column, type SortState } from "@/components/admin/data-table";
 import { useDebounced } from "@/hooks/use-debounced";
+import { DataTable, type Column, type SortState } from "@/components/admin/data-table";
 import { EmptyState, NoResults } from "@/components/admin/states";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { BRAND } from "@/components/admin/theme";
+import { BRAND, CARD, TONE, departmentTone } from "@/components/admin/theme";
+import { Kpi, PageHeader, UserChip } from "@/components/admin/primitives";
 
 export const Route = createFileRoute("/admin/users")({
   component: UsersPage,
@@ -90,12 +101,43 @@ function UsersPage() {
     placeholderData: (prev) => prev, // keeps the table steady while paging
   });
 
+  /**
+   * Counters come from the list endpoint's own `total` under each filter — one
+   * extra cheap query per tile, and no new API. pageSize=1 because only the
+   * count is wanted.
+   */
+  const countActive = useQuery({
+    queryKey: ["users-count", "active"],
+    queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users?pageSize=1&status=active"),
+  });
+  const countSuspended = useQuery({
+    queryKey: ["users-count", "suspended"],
+    queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users?pageSize=1&status=suspended"),
+  });
+  const countAdmins = useQuery({
+    queryKey: ["users-count", "admin"],
+    queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users?pageSize=1&role=admin"),
+  });
+  const countSupers = useQuery({
+    queryKey: ["users-count", "super_admin"],
+    queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users?pageSize=1&role=super_admin"),
+  });
+  const countStaff = useQuery({
+    queryKey: ["users-count", "staff"],
+    queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users?pageSize=1&role=staff"),
+  });
+
+  const invalidate = () => {
+    void qc.invalidateQueries({ queryKey: ["users"] });
+    void qc.invalidateQueries({ queryKey: ["users-count"] });
+  };
+
   const setStatusMutation = useMutation({
     mutationFn: ({ id, next }: { id: string; next: "active" | "suspended" }) =>
       api.patch<AdminUser>(`/api/admin/users/${id}`, { status: next }),
     onSuccess: (_data, vars) => {
       toast.success(vars.next === "suspended" ? "User suspended" : "User activated");
-      void qc.invalidateQueries({ queryKey: ["users"] });
+      invalidate();
     },
     // The server's message is the exact reason (e.g. last super admin) — showing
     // our own wording here would hide why it was refused.
@@ -107,7 +149,7 @@ function UsersPage() {
     onSuccess: () => {
       toast.success("User deleted");
       setDeleting(null);
-      void qc.invalidateQueries({ queryKey: ["users"] });
+      invalidate();
     },
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete user"),
   });
@@ -117,95 +159,108 @@ function UsersPage() {
       {
         key: "name",
         sortable: true,
-        header: "Name",
-        render: (u) => (
-          <div className="min-w-0">
-            <p className="truncate font-medium text-slate-800 dark:text-slate-100">
-              {u.full_name ?? "—"}
-            </p>
-            <p className="truncate text-xs text-slate-500 sm:hidden dark:text-slate-400">
-              {u.email}
-            </p>
-          </div>
-        ),
+        header: "User",
+        exportValue: (u) => u.full_name,
+        render: (u) => <UserChip name={u.full_name} email={u.email} />,
       },
       {
-        key: "email",
+        key: "role",
         sortable: true,
-        header: "Email",
-        hideOnMobile: true,
-        render: (u) => <span className="text-slate-600 dark:text-slate-300">{u.email}</span>,
+        header: "Role",
+        exportValue: (u) => u.role,
+        render: (u) => <StatusBadge value={u.role} />,
       },
-      { key: "role", header: "Role", render: (u) => <StatusBadge value={u.role} /> },
       {
         key: "department",
         header: "Department",
         hideOnMobile: true,
-        render: (u) => (
-          <span className="text-slate-600 dark:text-slate-300">{u.department_name ?? "—"}</span>
-        ),
+        exportValue: (u) => u.department_name,
+        render: (u) => {
+          if (!u.department_name) {
+            return <span className="text-xs text-slate-400">Not scoped</span>;
+          }
+          const t = TONE[departmentTone(u.department_name)];
+          return (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${t.bg} ${t.fg}`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60" aria-hidden="true" />
+              {u.department_name}
+            </span>
+          );
+        },
       },
-      { key: "status", header: "Status", render: (u) => <StatusBadge value={u.status} /> },
+      {
+        key: "status",
+        sortable: true,
+        header: "Status",
+        exportValue: (u) => u.status,
+        render: (u) => <StatusBadge value={u.status} />,
+      },
       {
         key: "created",
         sortable: true,
         header: "Created",
         hideOnMobile: true,
+        exportValue: (u) => u.created_at,
         render: (u) => (
-          <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
-            {new Date(u.created_at).toLocaleDateString()}
+          <span className="whitespace-nowrap text-xs tabular-nums text-slate-500 dark:text-slate-400">
+            {formatDate(u.created_at)}
           </span>
         ),
       },
       {
         key: "actions",
-        header: "Actions",
-        className: "text-right",
+        header: "",
+        alwaysVisible: true,
+        className: "w-12 text-right",
         render: (u) => (
-          <div className="flex justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Edit ${u.full_name}`}
-              onClick={() => setEditing(u)}
-            >
-              <UserPen className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={
-                u.status === "active" ? `Suspend ${u.full_name}` : `Activate ${u.full_name}`
-              }
-              disabled={setStatusMutation.isPending}
-              onClick={() =>
-                setStatusMutation.mutate({
-                  id: u.user_id,
-                  next: u.status === "active" ? "suspended" : "active",
-                })
-              }
-            >
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8"
+                aria-label={`Actions for ${u.full_name}`}
+              >
+                <MoreVertical className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem onClick={() => setEditing(u)}>
+                <UserPen className="mr-2 h-4 w-4" />
+                Edit user
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
               {u.status === "active" ? (
-                <Ban className="h-4 w-4 text-amber-600" />
+                <DropdownMenuItem
+                  onClick={() => setStatusMutation.mutate({ id: u.user_id, next: "suspended" })}
+                >
+                  <Ban className="mr-2 h-4 w-4 text-amber-600" />
+                  Suspend
+                </DropdownMenuItem>
               ) : (
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                <DropdownMenuItem
+                  onClick={() => setStatusMutation.mutate({ id: u.user_id, next: "active" })}
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" />
+                  Activate
+                </DropdownMenuItem>
               )}
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Delete ${u.full_name}`}
-              onClick={() => setDeleting(u)}
-            >
-              <Trash2 className="h-4 w-4 text-red-600" />
-            </Button>
-          </div>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setDeleting(u)} className="text-red-600">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ),
       },
     ],
     [setStatusMutation],
   );
 
+  const hasFilters = !!debouncedSearch || role !== ALL || status !== ALL || departmentId !== ALL;
   function clearFilters() {
     setSearch("");
     setRole(ALL);
@@ -215,27 +270,85 @@ function UsersPage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1200px] space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Users
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Manage accounts, roles and access.
-          </p>
-        </div>
-        <Button
-          onClick={() => setCreateOpen(true)}
-          style={{ background: BRAND }}
-          className="text-white"
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
-          New user
-        </Button>
-      </header>
+    <div className="mx-auto w-full max-w-[1500px] space-y-5">
+      <PageHeader
+        title="Users"
+        description="Manage accounts, roles and access to the admin console."
+        actions={
+          <Button
+            size="sm"
+            className="h-9 gap-2 text-white"
+            style={{ background: BRAND }}
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New user
+          </Button>
+        }
+      />
 
-      <div className="flex flex-wrap gap-2">
+      {/* Each tile filters the table, so a count is also a way in. */}
+      <section
+        aria-label="User summary"
+        className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-5"
+      >
+        <Kpi
+          label="Total users"
+          value={users.data?.total ?? 0}
+          icon={UsersIcon}
+          tone="blue"
+          active={!hasFilters}
+          onClick={clearFilters}
+        />
+        <Kpi
+          label="Active"
+          value={countActive.data?.total ?? 0}
+          icon={CheckCircle2}
+          tone="emerald"
+          active={status === "active"}
+          onClick={() => {
+            setStatus(status === "active" ? ALL : "active");
+            setPage(1);
+          }}
+        />
+        <Kpi
+          label="Suspended"
+          value={countSuspended.data?.total ?? 0}
+          icon={Ban}
+          tone="amber"
+          active={status === "suspended"}
+          onClick={() => {
+            setStatus(status === "suspended" ? ALL : "suspended");
+            setPage(1);
+          }}
+        />
+        <Kpi
+          label="Admins"
+          value={(countAdmins.data?.total ?? 0) + (countSupers.data?.total ?? 0)}
+          icon={ShieldCheck}
+          tone="violet"
+          hint={`${countSupers.data?.total ?? 0} super admin`}
+          active={role === "admin"}
+          onClick={() => {
+            setRole(role === "admin" ? ALL : "admin");
+            setPage(1);
+          }}
+        />
+        <Kpi
+          label="Staff"
+          value={countStaff.data?.total ?? 0}
+          icon={Building2}
+          tone="slate"
+          hint="Department-scoped"
+          active={role === "staff"}
+          onClick={() => {
+            setRole(role === "staff" ? ALL : "staff");
+            setPage(1);
+          }}
+        />
+      </section>
+
+      <div className={`${CARD} flex flex-wrap items-center gap-2 p-2`}>
         <Input
           value={search}
           onChange={(e) => {
@@ -244,7 +357,7 @@ function UsersPage() {
           }}
           placeholder="Search name or email…"
           aria-label="Search users"
-          className="w-full sm:max-w-xs"
+          className="h-9 w-full sm:max-w-[260px]"
         />
         <FilterSelect
           value={role}
@@ -280,6 +393,11 @@ function UsersPage() {
           label="Department"
           options={(departments.data?.items ?? []).map((d) => [d.id, d.name])}
         />
+        {hasFilters && (
+          <Button variant="ghost" size="sm" className="h-9 text-slate-500" onClick={clearFilters}>
+            Reset
+          </Button>
+        )}
       </div>
 
       <DataTable
@@ -295,13 +413,14 @@ function UsersPage() {
         total={users.data?.total ?? 0}
         onPageChange={setPage}
         sort={sort}
-        onSortChange={(s) => {
-          setSort(s);
+        onSortChange={(next) => {
+          setSort(next);
           setPage(1);
         }}
+        exportName="users"
         empty={
-          search || role !== ALL || status !== ALL || departmentId !== ALL ? (
-            <NoResults query={search || "these filters"} onClear={clearFilters} />
+          hasFilters ? (
+            <NoResults query={debouncedSearch || "these filters"} onClear={clearFilters} />
           ) : (
             <EmptyState
               icon={UsersIcon}
@@ -321,14 +440,14 @@ function UsersPage() {
         open={createOpen}
         onOpenChange={setCreateOpen}
         departments={departments.data?.items ?? []}
-        onSaved={() => void qc.invalidateQueries({ queryKey: ["users"] })}
+        onSaved={invalidate}
       />
       <UserFormDialog
         open={!!editing}
         onOpenChange={(o) => !o && setEditing(null)}
         user={editing ?? undefined}
         departments={departments.data?.items ?? []}
-        onSaved={() => void qc.invalidateQueries({ queryKey: ["users"] })}
+        onSaved={invalidate}
       />
 
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
@@ -373,7 +492,7 @@ function FilterSelect({
 }) {
   return (
     <Select value={value} onValueChange={onChange}>
-      <SelectTrigger className="w-[150px]" aria-label={`Filter by ${label.toLowerCase()}`}>
+      <SelectTrigger className="h-9 w-[150px]" aria-label={`Filter by ${label.toLowerCase()}`}>
         <SelectValue placeholder={label} />
       </SelectTrigger>
       <SelectContent>
@@ -388,7 +507,15 @@ function FilterSelect({
   );
 }
 
-/** Create and edit share one dialog: the fields overlap almost entirely. */
+/** "17 Jul 2026" reads faster in a column than a locale-default date string. */
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
+}
+
 function UserFormDialog({
   open,
   onOpenChange,

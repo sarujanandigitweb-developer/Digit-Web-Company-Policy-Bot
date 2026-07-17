@@ -2,7 +2,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { Building2, Loader2, Pencil, Plus, Trash2 } from "lucide-react";
+import {
+  Building2,
+  FileText,
+  Loader2,
+  MoreVertical,
+  Pencil,
+  Plus,
+  Trash2,
+  Users as UsersIcon,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -37,7 +46,15 @@ import { useDebounced } from "@/hooks/use-debounced";
 import { DataTable, type Column } from "@/components/admin/data-table";
 import { EmptyState, NoResults } from "@/components/admin/states";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { BRAND } from "@/components/admin/theme";
+import { BRAND, CARD, TONE, departmentTone, initials } from "@/components/admin/theme";
+import { Kpi, PageHeader } from "@/components/admin/primitives";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/admin/departments")({
   component: DepartmentsPage,
@@ -60,6 +77,11 @@ function DepartmentsPage() {
       ),
     placeholderData: (prev) => prev,
   });
+
+  const items = departments.data?.items ?? [];
+  const activeCount = items.filter((d) => d.status === "active").length;
+  const withDocs = items.filter((d) => d.document_count > 0).length;
+  const totalDocs = items.reduce((sum, d) => sum + d.document_count, 0);
 
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ["departments-page"] });
@@ -154,40 +176,82 @@ function DepartmentsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1200px] space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Departments
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Knowledge is scoped to a department.
-          </p>
-        </div>
-        <Button
-          onClick={() => setCreateOpen(true)}
-          style={{ background: BRAND }}
-          className="text-white"
-        >
-          <Plus className="mr-1.5 h-4 w-4" />
-          New department
-        </Button>
-      </header>
-
-      <Input
-        value={search}
-        onChange={(e) => {
-          setSearch(e.target.value);
-          setPage(1);
-        }}
-        placeholder="Search departments…"
-        aria-label="Search departments"
-        className="w-full sm:max-w-xs"
+      <PageHeader
+        title="Departments"
+        description="Knowledge and staff are scoped to a department."
+        actions={
+          <Button
+            size="sm"
+            className="h-9 gap-2 text-white"
+            style={{ background: BRAND }}
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="h-3.5 w-3.5" />
+            New department
+          </Button>
+        }
       />
+
+      <section aria-label="Department summary" className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <Kpi
+          label="Departments"
+          value={departments.data?.total ?? 0}
+          icon={Building2}
+          tone="brand"
+        />
+        <Kpi
+          label="Active"
+          value={activeCount}
+          icon={Building2}
+          tone="emerald"
+          hint="Accepting uploads"
+        />
+        <Kpi
+          label="With content"
+          value={withDocs}
+          icon={FileText}
+          tone="blue"
+          hint="Searchable by the bot"
+        />
+        <Kpi
+          label="Documents"
+          value={totalDocs}
+          icon={FileText}
+          tone="violet"
+          hint="Across this page"
+        />
+      </section>
+
+      <div className={`${CARD} flex flex-wrap items-center gap-2 p-2`}>
+        <Input
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          placeholder="Search departments…"
+          aria-label="Search departments"
+          className="h-9 w-full sm:max-w-[260px]"
+        />
+        {debouncedSearch && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 text-slate-500"
+            onClick={() => {
+              setSearch("");
+              setPage(1);
+            }}
+          >
+            Reset
+          </Button>
+        )}
+      </div>
 
       <DataTable
         caption="Departments"
         columns={columns}
-        rows={departments.data?.items ?? []}
+        rows={items}
         rowKey={(d) => d.id}
         isLoading={departments.isLoading}
         error={departments.error}
@@ -196,6 +260,7 @@ function DepartmentsPage() {
         pageSize={departments.data?.pageSize ?? 25}
         total={departments.data?.total ?? 0}
         onPageChange={setPage}
+        exportName="departments"
         empty={
           debouncedSearch ? (
             <NoResults query={debouncedSearch} onClear={() => setSearch("")} />

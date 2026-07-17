@@ -26,6 +26,7 @@ import {
 import { api } from "@/lib/api/client";
 import { CARD } from "@/components/admin/theme";
 import { CardSkeleton, EmptyState, ErrorState } from "@/components/admin/states";
+import { PageHeader } from "@/components/admin/primitives";
 
 export const Route = createFileRoute("/admin/analytics")({
   component: AnalyticsPage,
@@ -81,26 +82,22 @@ function AnalyticsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1200px] space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Analytics
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Knowledge base growth and processing health.
-          </p>
-        </div>
-        <Select value={days} onValueChange={setDays}>
-          <SelectTrigger className="w-[150px]" aria-label="Time range">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="7">Last 7 days</SelectItem>
-            <SelectItem value="30">Last 30 days</SelectItem>
-            <SelectItem value="90">Last 90 days</SelectItem>
-          </SelectContent>
-        </Select>
-      </header>
+      <PageHeader
+        title="Analytics"
+        description="Knowledge base growth and processing health."
+        actions={
+          <Select value={days} onValueChange={setDays}>
+            <SelectTrigger className="h-9 w-[150px]" aria-label="Time range">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="7">Last 7 days</SelectItem>
+              <SelectItem value="30">Last 30 days</SelectItem>
+              <SelectItem value="90">Last 90 days</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+      />
 
       {analytics.isLoading ? (
         <div className="grid gap-4 lg:grid-cols-2">
@@ -117,7 +114,7 @@ function AnalyticsPage() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           <ChartCard title="Documents by department">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={240}>
               <BarChart data={d!.byDepartment}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="department" tick={{ fontSize: 11 }} />
@@ -129,7 +126,7 @@ function AnalyticsPage() {
           </ChartCard>
 
           <ChartCard title="Documents by status">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={240}>
               <BarChart data={d!.byStatus} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
                 <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
@@ -145,7 +142,7 @@ function AnalyticsPage() {
           </ChartCard>
 
           <ChartCard title="Uploads over time">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={240}>
               <AreaChart data={d!.overTime}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis
@@ -169,7 +166,7 @@ function AnalyticsPage() {
           </ChartCard>
 
           <ChartCard title="Chunk & embedding growth">
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={240}>
               <LineChart data={d!.overTime}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis
@@ -206,7 +203,7 @@ function AnalyticsPage() {
           </ChartCard>
 
           <ChartCard title="Retry history" className="lg:col-span-2">
-            <ResponsiveContainer width="100%" height={200}>
+            <ResponsiveContainer width="100%" height={220}>
               <BarChart data={d!.retries}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
                 <XAxis

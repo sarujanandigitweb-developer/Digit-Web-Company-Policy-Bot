@@ -2,7 +2,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CheckCircle2, Loader2, SearchX, Sparkles } from "lucide-react";
+import { CheckCircle2, Ban, Eye, Loader2, MoreVertical, Sparkles, TrendingUp } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -27,7 +27,15 @@ import { useDebounced } from "@/hooks/use-debounced";
 import { DataTable, type Column, type SortState } from "@/components/admin/data-table";
 import { EmptyState, NoResults } from "@/components/admin/states";
 import { ConfidencePill } from "@/components/admin/confidence-pill";
-import { CARD, BRAND } from "@/components/admin/theme";
+import { BRAND, CARD, TONE, departmentTone } from "@/components/admin/theme";
+import { Kpi, PageHeader } from "@/components/admin/primitives";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 export const Route = createFileRoute("/admin/knowledge-gaps")({
   component: KnowledgeGapsPage,
@@ -236,46 +244,67 @@ function KnowledgeGapsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-          Knowledge gaps
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          Questions the chatbot could not answer confidently — what to document next.
-        </p>
-      </header>
+      <PageHeader
+        title="Knowledge gaps"
+        description="Questions the chatbot could not answer confidently — what to document next."
+      />
 
-      {stats && (
-        <section aria-label="Gap summary" className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(
-            [
-              ["Open", "pending"],
-              ["Reviewing", "reviewed"],
-              ["Resolved", "resolved"],
-              ["Ignored", "ignored"],
-            ] as const
-          ).map(([label, key]) => (
-            <button
-              key={key}
-              type="button"
-              onClick={() => {
-                setStatus(status === key ? ALL : key);
-                setPage(1);
-              }}
-              className={`${CARD} p-4 text-left transition hover:shadow-md focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b6cf3] ${status === key ? "ring-2 ring-[#2b6cf3]" : ""}`}
-            >
-              <span className="text-xs font-medium text-slate-500 dark:text-slate-400">
-                {label}
-              </span>
-              <p className="mt-1 text-2xl font-bold tabular-nums text-slate-900 dark:text-white">
-                {stats[key]}
-              </p>
-            </button>
-          ))}
-        </section>
-      )}
+      {/* Each tile filters the table, so a count doubles as a way in. */}
+      <section aria-label="Gap summary" className="grid grid-cols-2 gap-4 lg:grid-cols-5">
+        <Kpi
+          label="Open"
+          value={stats?.pending ?? 0}
+          icon={Sparkles}
+          tone={(stats?.pending ?? 0) > 0 ? "amber" : "emerald"}
+          active={status === "pending"}
+          onClick={() => {
+            setStatus(status === "pending" ? ALL : "pending");
+            setPage(1);
+          }}
+        />
+        <Kpi
+          label="Reviewing"
+          value={stats?.reviewed ?? 0}
+          icon={Eye}
+          tone="blue"
+          active={status === "reviewed"}
+          onClick={() => {
+            setStatus(status === "reviewed" ? ALL : "reviewed");
+            setPage(1);
+          }}
+        />
+        <Kpi
+          label="Resolved"
+          value={stats?.resolved ?? 0}
+          icon={CheckCircle2}
+          tone="emerald"
+          active={status === "resolved"}
+          onClick={() => {
+            setStatus(status === "resolved" ? ALL : "resolved");
+            setPage(1);
+          }}
+        />
+        <Kpi
+          label="Ignored"
+          value={stats?.ignored ?? 0}
+          icon={Ban}
+          tone="slate"
+          active={status === "ignored"}
+          onClick={() => {
+            setStatus(status === "ignored" ? ALL : "ignored");
+            setPage(1);
+          }}
+        />
+        <Kpi
+          label="Times asked"
+          value={stats?.total_occurrences ?? 0}
+          icon={TrendingUp}
+          tone="violet"
+          hint="Across open gaps"
+        />
+      </section>
 
-      <div className="flex flex-wrap gap-2">
+      <div className={`${CARD} flex flex-wrap items-center gap-2 p-2`}>
         <Input
           value={search}
           onChange={(e) => {
@@ -284,7 +313,7 @@ function KnowledgeGapsPage() {
           }}
           placeholder="Search questions…"
           aria-label="Search knowledge gaps"
-          className="w-full sm:max-w-xs"
+          className="h-9 w-full sm:max-w-[260px]"
         />
         <Select
           value={departmentId}
@@ -293,7 +322,7 @@ function KnowledgeGapsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[170px]" aria-label="Filter by department">
+          <SelectTrigger className="h-9 w-[170px]" aria-label="Filter by department">
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
@@ -312,7 +341,7 @@ function KnowledgeGapsPage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[150px]" aria-label="Filter by status">
+          <SelectTrigger className="h-9 w-[150px]" aria-label="Filter by status">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
@@ -324,6 +353,21 @@ function KnowledgeGapsPage() {
             ))}
           </SelectContent>
         </Select>
+        {hasFilters && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-9 text-slate-500"
+            onClick={() => {
+              setSearch("");
+              setDepartmentId(ALL);
+              setStatus(ALL);
+              setPage(1);
+            }}
+          >
+            Reset
+          </Button>
+        )}
       </div>
 
       <DataTable

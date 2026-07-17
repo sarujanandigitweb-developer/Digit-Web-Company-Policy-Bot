@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Info } from "lucide-react";
 import { api } from "@/lib/api/client";
 import { CARD } from "@/components/admin/theme";
+import { PageHeader } from "@/components/admin/primitives";
 import { CardSkeleton, ErrorState } from "@/components/admin/states";
 import { StatusBadge } from "@/components/admin/status-badge";
 
@@ -52,14 +53,7 @@ function SettingsPage() {
 
   return (
     <div className="mx-auto w-full max-w-[1000px] space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-          Settings
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          What the running system is configured with.
-        </p>
-      </header>
+      <PageHeader title="Settings" description="What the running system is configured with." />
 
       <div
         className="flex items-start gap-2.5 rounded-2xl border border-blue-200 bg-blue-50 p-3 dark:border-blue-900/40 dark:bg-blue-950/30"

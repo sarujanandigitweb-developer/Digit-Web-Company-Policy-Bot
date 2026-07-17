@@ -16,6 +16,7 @@ import {
 import { api, qs, type Department, type Paged } from "@/lib/api/client";
 import { BRAND, CARD } from "@/components/admin/theme";
 import { EmptyState, ErrorState } from "@/components/admin/states";
+import { PageHeader } from "@/components/admin/primitives";
 
 export const Route = createFileRoute("/admin/search")({
   component: SearchPlayground,
@@ -67,14 +68,10 @@ function SearchPlayground() {
 
   return (
     <div className="mx-auto w-full max-w-[1000px] space-y-6">
-      <header>
-        <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-          Search playground
-        </h1>
-        <p className="text-sm text-slate-500 dark:text-slate-400">
-          See what the chatbot retrieves before it answers.
-        </p>
-      </header>
+      <PageHeader
+        title="Search playground"
+        description="See exactly what the chatbot retrieves before it answers."
+      />
 
       <form
         className={`${CARD} space-y-4 p-4`}

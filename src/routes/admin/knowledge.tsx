@@ -1,8 +1,23 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
-import { Archive, CheckCircle2, FileText, Loader2, RefreshCw, Trash2, Upload } from "lucide-react";
+import {
+  Archive,
+  Building2,
+  CheckCircle2,
+  Eye,
+  FileText,
+  HardDrive,
+  Layers,
+  Loader2,
+  MoreVertical,
+  RefreshCw,
+  Sparkles,
+  Trash2,
+  Upload,
+} from "lucide-react";
+import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,19 +41,39 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip";
-import { api, qs, type Department, type KnowledgeDocument, type Paged } from "@/lib/api/client";
-import { DataTable, type Column, type SortState } from "@/components/admin/data-table";
+import {
+  Tooltip as UiTooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  api,
+  qs,
+  type Department,
+  type KnowledgeDocument,
+  type Paged,
+  type KnowledgeStats,
+} from "@/lib/api/client";
 import { useDebounced } from "@/hooks/use-debounced";
-import { EmptyState, NoResults } from "@/components/admin/states";
+import { DataTable, type Column, type SortState } from "@/components/admin/data-table";
+import { EmptyState, ErrorState, NoResults, TableSkeleton } from "@/components/admin/states";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { BRAND } from "@/components/admin/theme";
+import { BRAND, CARD, FOCUS_RING, TONE, departmentTone, initials } from "@/components/admin/theme";
+import { Kpi, PageHeader, UserChip } from "@/components/admin/primitives";
 
 export const Route = createFileRoute("/admin/knowledge")({
   component: KnowledgePage,
@@ -47,8 +82,21 @@ export const Route = createFileRoute("/admin/knowledge")({
 const ALL = "__all__";
 const ACCEPT = ".pdf,.docx,.txt,.md,.markdown";
 
+/** File-type accents. The extension is the one thing every row has. */
+const TYPE_TONE: Record<string, keyof typeof TONE> = {
+  pdf: "red",
+  docx: "blue",
+  txt: "slate",
+  md: "violet",
+};
+
+interface Analytics {
+  byDepartment: Array<{ department: string; documents: number }>;
+}
+
 function KnowledgePage() {
   const qc = useQueryClient();
+  const navigate = useNavigate();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState(ALL);
@@ -56,6 +104,7 @@ function KnowledgePage() {
   const [uploadOpen, setUploadOpen] = useState(false);
   const [replaceTarget, setReplaceTarget] = useState<KnowledgeDocument | null>(null);
   const [deleting, setDeleting] = useState<KnowledgeDocument | null>(null);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState<SortState>({ key: "created", direction: "desc" });
   // Debounced so typing doesn't fire a request per keystroke.
   const debouncedSearch = useDebounced(search);
@@ -63,6 +112,16 @@ function KnowledgePage() {
   const departments = useQuery({
     queryKey: ["departments"],
     queryFn: () => api.get<Paged<Department>>("/api/admin/departments?pageSize=100"),
+  });
+
+  const stats = useQuery({
+    queryKey: ["knowledge-stats"],
+    queryFn: () => api.get<KnowledgeStats>("/api/admin/knowledge/stats"),
+  });
+
+  const analytics = useQuery({
+    queryKey: ["knowledge-analytics"],
+    queryFn: () => api.get<Analytics>("/api/admin/analytics/knowledge?days=30"),
   });
 
   const documents = useQuery({
@@ -89,6 +148,7 @@ function KnowledgePage() {
   const invalidate = () => {
     void qc.invalidateQueries({ queryKey: ["documents"] });
     void qc.invalidateQueries({ queryKey: ["knowledge-stats"] });
+    void qc.invalidateQueries({ queryKey: ["knowledge-analytics"] });
   };
 
   const statusMutation = useMutation({
@@ -122,60 +182,132 @@ function KnowledgePage() {
     onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete"),
   });
 
+  /**
+   * Bulk actions run the existing single-document endpoints in sequence.
+   * No new API: the admin gets one gesture, the server sees the same calls it
+   * already validates and audits one at a time.
+   */
+  const bulkMutation = useMutation({
+    mutationFn: async ({
+      ids,
+      action,
+    }: {
+      ids: string[];
+      action: "archived" | "active" | "retry";
+    }) => {
+      const results = await Promise.allSettled(
+        ids.map((id) =>
+          action === "retry"
+            ? api.post(`/api/admin/knowledge/${id}/retry`)
+            : api.patch(`/api/admin/knowledge/${id}`, { status: action }),
+        ),
+      );
+      return results.filter((r) => r.status === "rejected").length;
+    },
+    onSuccess: (failures, { ids, action }) => {
+      const verb =
+        action === "retry"
+          ? "queued for reprocessing"
+          : action === "active"
+            ? "activated"
+            : "archived";
+      // Reports partial failure honestly rather than claiming a clean sweep.
+      if (failures === 0) toast.success(`${ids.length} document(s) ${verb}`);
+      else toast.warning(`${ids.length - failures} ${verb}, ${failures} failed`);
+      setSelected(new Set());
+      invalidate();
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Bulk action failed"),
+  });
+
+  const items = documents.data?.items ?? [];
+  // Sum of what was uploaded. Labelled "file size", not "storage": the pipeline
+  // keeps extracted text, not the files, so nothing sits in a bucket.
+  const totalBytes = items.reduce((sum, d) => sum + Number(d.file_size_bytes ?? 0), 0);
+  const departmentCount = analytics.data?.byDepartment.filter((d) => d.documents > 0).length ?? 0;
+  const s = stats.data;
+
   const columns = useMemo<Column<KnowledgeDocument>[]>(
     () => [
       {
         key: "title",
         sortable: true,
-        header: "Title",
-        render: (d) => (
-          <div className="min-w-0">
-            <Link
-              to="/admin/knowledge/$id"
-              params={{ id: d.id }}
-              className="truncate rounded font-medium text-slate-800 underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b6cf3] dark:text-slate-100"
-            >
-              {d.title}
-            </Link>
-            <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-              {d.file_name} · {formatBytes(d.file_size_bytes)}
-            </p>
-          </div>
-        ),
+        header: "Document",
+        exportValue: (d) => d.title,
+        render: (d) => {
+          const tone = TONE[TYPE_TONE[d.file_type] ?? "slate"];
+          return (
+            <div className="flex min-w-0 items-center gap-3">
+              <span
+                className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg ${tone.bg}`}
+              >
+                <FileText className={`h-4 w-4 ${tone.fg}`} />
+              </span>
+              <div className="min-w-0">
+                <Link
+                  to="/admin/knowledge/$id"
+                  params={{ id: d.id }}
+                  className={`block truncate font-medium text-slate-800 underline-offset-2 hover:underline dark:text-slate-100 ${FOCUS_RING}`}
+                >
+                  {d.title}
+                </Link>
+                <p className="truncate text-xs text-slate-400">
+                  <span className="uppercase">{d.file_type}</span> ·{" "}
+                  {formatBytes(d.file_size_bytes)}
+                  {d.page_count !== null && ` · ${d.page_count} pages`}
+                </p>
+              </div>
+            </div>
+          );
+        },
       },
       {
         key: "department",
         sortable: true,
         header: "Department",
         hideOnMobile: true,
-        render: (d) => (
-          <span className="text-slate-600 dark:text-slate-300">{d.department_name ?? "—"}</span>
-        ),
+        exportValue: (d) => d.department_name,
+        render: (d) => {
+          if (!d.department_name) return <span className="text-xs text-slate-400">—</span>;
+          const t = TONE[departmentTone(d.department_name)];
+          return (
+            <span
+              className={`inline-flex items-center gap-1.5 rounded-full px-2 py-0.5 text-xs font-medium ${t.bg} ${t.fg}`}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-current opacity-60" aria-hidden="true" />
+              {d.department_name}
+            </span>
+          );
+        },
       },
       {
         key: "version",
         sortable: true,
-        header: "Ver",
+        header: "Version",
         hideOnMobile: true,
+        exportValue: (d) => d.version,
         render: (d) => (
-          <span className="tabular-nums text-slate-600 dark:text-slate-300">v{d.version}</span>
+          <span className="inline-flex rounded-md border border-slate-200 px-1.5 py-0.5 font-mono text-[11px] text-slate-600 dark:border-white/10 dark:text-slate-300">
+            v{d.version}
+          </span>
         ),
       },
       {
         key: "status",
         sortable: true,
         header: "Status",
+        exportValue: (d) => d.status,
         render: (d) =>
           d.status === "failed" && d.processing_error ? (
             <TooltipProvider>
-              <Tooltip>
+              <UiTooltip>
                 <TooltipTrigger>
                   <StatusBadge value={d.status} />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                   <p className="text-xs">{d.processing_error}</p>
                 </TooltipContent>
-              </Tooltip>
+              </UiTooltip>
             </TooltipProvider>
           ) : (
             <StatusBadge value={d.status} />
@@ -186,106 +318,121 @@ function KnowledgePage() {
         sortable: true,
         header: "Chunks",
         hideOnMobile: true,
+        exportValue: (d) => d.chunk_count,
         render: (d) => (
-          <span className="tabular-nums text-slate-600 dark:text-slate-300">{d.chunk_count}</span>
+          <div className="leading-tight">
+            <p className="font-medium tabular-nums text-slate-700 dark:text-slate-200">
+              {d.chunk_count}
+            </p>
+            <p className="text-[11px] text-slate-400">chunks</p>
+          </div>
         ),
       },
       {
         key: "embeddings",
         header: "Embeddings",
         hideOnMobile: true,
-        render: (d) => (
-          <span
-            className={`tabular-nums ${
-              d.chunk_count > 0 && d.embedded_count < d.chunk_count
-                ? "text-amber-600 dark:text-amber-400"
-                : "text-slate-600 dark:text-slate-300"
-            }`}
-          >
-            {d.embedded_count}
-            {d.chunk_count > 0 && d.embedded_count < d.chunk_count && ` / ${d.chunk_count}`}
-          </span>
-        ),
+        exportValue: (d) => d.embedded_count,
+        render: (d) => {
+          const partial = d.chunk_count > 0 && d.embedded_count < d.chunk_count;
+          return (
+            <span className="inline-flex items-center gap-1.5">
+              <Sparkles
+                className={`h-3.5 w-3.5 ${partial ? "text-amber-500" : "text-violet-500"}`}
+              />
+              <span
+                className={`tabular-nums ${partial ? "text-amber-600 dark:text-amber-400" : "text-slate-700 dark:text-slate-200"}`}
+              >
+                {d.embedded_count}
+                {partial && `/${d.chunk_count}`}
+              </span>
+            </span>
+          );
+        },
       },
       {
         key: "uploaded_by",
         header: "Uploaded by",
         hideOnMobile: true,
-        render: (d) => (
-          <span className="text-slate-600 dark:text-slate-300">{d.uploaded_by_name ?? "—"}</span>
-        ),
+        exportValue: (d) => d.uploaded_by_name,
+        render: (d) => <UserChip name={d.uploaded_by_name} />,
       },
       {
         key: "created",
         sortable: true,
         header: "Created",
         hideOnMobile: true,
+        exportValue: (d) => d.created_at,
         render: (d) => (
-          <span className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
-            {new Date(d.created_at).toLocaleDateString()}
+          <span className="whitespace-nowrap text-xs tabular-nums text-slate-500 dark:text-slate-400">
+            {formatDate(d.created_at)}
           </span>
         ),
       },
       {
         key: "actions",
-        header: "Actions",
-        className: "text-right",
+        header: "",
+        alwaysVisible: true,
+        className: "w-12 text-right",
         render: (d) => (
-          <div className="flex justify-end gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Replace ${d.title}`}
-              onClick={() => setReplaceTarget(d)}
-            >
-              <Upload className="h-4 w-4" />
-            </Button>
-            {(d.status === "failed" || d.status === "processing") && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="ghost"
                 size="icon"
-                aria-label={`Retry ${d.title}`}
-                disabled={retryMutation.isPending}
-                onClick={() => retryMutation.mutate(d.id)}
+                className="h-8 w-8"
+                aria-label={`Actions for ${d.title}`}
+                onClick={(e) => e.stopPropagation()}
               >
-                <RefreshCw className="h-4 w-4 text-blue-600" />
+                <MoreVertical className="h-4 w-4" />
               </Button>
-            )}
-            {d.status !== "active" && d.status !== "processing" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Activate ${d.title}`}
-                onClick={() => statusMutation.mutate({ id: d.id, next: "active" })}
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                onClick={() => navigate({ to: "/admin/knowledge/$id", params: { id: d.id } })}
               >
-                <CheckCircle2 className="h-4 w-4 text-emerald-600" />
-              </Button>
-            )}
-            {d.status !== "archived" && (
-              <Button
-                variant="ghost"
-                size="icon"
-                aria-label={`Archive ${d.title}`}
-                onClick={() => statusMutation.mutate({ id: d.id, next: "archived" })}
-              >
-                <Archive className="h-4 w-4" />
-              </Button>
-            )}
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label={`Delete ${d.title}`}
-              onClick={() => setDeleting(d)}
-            >
-              <Trash2 className="h-4 w-4 text-red-600" />
-            </Button>
-          </div>
+                <Eye className="mr-2 h-4 w-4" />
+                View details
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => setReplaceTarget(d)}>
+                <Upload className="mr-2 h-4 w-4" />
+                Replace file
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => retryMutation.mutate(d.id)}>
+                <RefreshCw className="mr-2 h-4 w-4" />
+                Reprocess
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              {d.status !== "active" && d.status !== "processing" && (
+                <DropdownMenuItem
+                  onClick={() => statusMutation.mutate({ id: d.id, next: "active" })}
+                >
+                  <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" />
+                  Activate
+                </DropdownMenuItem>
+              )}
+              {d.status !== "archived" && (
+                <DropdownMenuItem
+                  onClick={() => statusMutation.mutate({ id: d.id, next: "archived" })}
+                >
+                  <Archive className="mr-2 h-4 w-4" />
+                  Archive
+                </DropdownMenuItem>
+              )}
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => setDeleting(d)} className="text-red-600">
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         ),
       },
     ],
-    [retryMutation, statusMutation],
+    [navigate, retryMutation, statusMutation],
   );
 
+  const hasFilters = !!debouncedSearch || departmentId !== ALL || status !== ALL;
   function clearFilters() {
     setSearch("");
     setDepartmentId(ALL);
@@ -294,27 +441,59 @@ function KnowledgePage() {
   }
 
   return (
-    <div className="mx-auto w-full max-w-[1400px] space-y-6">
-      <header className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-900 dark:text-white">
-            Knowledge
-          </h1>
-          <p className="text-sm text-slate-500 dark:text-slate-400">
-            Policy documents the chatbot can answer from.
-          </p>
-        </div>
-        <Button
-          onClick={() => setUploadOpen(true)}
-          style={{ background: BRAND }}
-          className="text-white"
-        >
-          <Upload className="mr-1.5 h-4 w-4" />
-          Upload
-        </Button>
-      </header>
+    <div className="mx-auto w-full max-w-[1500px] space-y-5">
+      <PageHeader
+        title="Knowledge"
+        description="Manage the documents the AI assistant answers from."
+        actions={
+          <>
+            <Button variant="outline" size="sm" className="h-9 gap-2" onClick={() => invalidate()}>
+              <RefreshCw className="h-3.5 w-3.5" />
+              Refresh
+            </Button>
+            <Button
+              size="sm"
+              className="h-9 gap-2 text-white"
+              style={{ background: BRAND }}
+              onClick={() => setUploadOpen(true)}
+            >
+              <Upload className="h-3.5 w-3.5" />
+              Upload
+            </Button>
+          </>
+        }
+      />
 
-      <div className="flex flex-wrap gap-2">
+      <section
+        aria-label="Knowledge summary"
+        className="grid grid-cols-2 gap-4 md:grid-cols-3 xl:grid-cols-6"
+      >
+        <Kpi label="Documents" value={s?.total_documents ?? 0} icon={FileText} tone="blue" />
+        <Kpi
+          label="Active"
+          value={s?.active ?? 0}
+          icon={CheckCircle2}
+          tone="emerald"
+          hint="Searchable"
+        />
+        <Kpi label="Processing" value={s?.processing ?? 0} icon={RefreshCw} tone="blue" />
+        <Kpi label="Failed" value={s?.failed ?? 0} icon={Archive} tone="red" />
+        <Kpi label="Chunks" value={s?.chunk_count ?? 0} icon={Layers} tone="violet" />
+        <Kpi
+          label="Embeddings"
+          value={s?.embedding_count ?? 0}
+          icon={Sparkles}
+          tone="violet"
+          hint={
+            s && s.chunk_count > s.embedding_count
+              ? `${s.chunk_count - s.embedding_count} outstanding`
+              : "Complete"
+          }
+        />
+      </section>
+
+      {/* One toolbar rather than filters scattered across the page. */}
+      <div className={`${CARD} flex flex-wrap items-center gap-2 p-2`}>
         <Input
           value={search}
           onChange={(e) => {
@@ -323,7 +502,7 @@ function KnowledgePage() {
           }}
           placeholder="Search title or filename…"
           aria-label="Search documents"
-          className="w-full sm:max-w-xs"
+          className="h-9 w-full sm:max-w-[260px]"
         />
         <Select
           value={departmentId}
@@ -332,7 +511,7 @@ function KnowledgePage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[160px]" aria-label="Filter by department">
+          <SelectTrigger className="h-9 w-[170px]" aria-label="Filter by department">
             <SelectValue placeholder="Department" />
           </SelectTrigger>
           <SelectContent>
@@ -351,24 +530,33 @@ function KnowledgePage() {
             setPage(1);
           }}
         >
-          <SelectTrigger className="w-[150px]" aria-label="Filter by status">
+          <SelectTrigger className="h-9 w-[150px]" aria-label="Filter by status">
             <SelectValue placeholder="Status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All statuses</SelectItem>
-            {["draft", "processing", "active", "inactive", "failed", "archived"].map((s) => (
-              <SelectItem key={s} value={s}>
-                {s.charAt(0).toUpperCase() + s.slice(1)}
+            {["draft", "processing", "active", "inactive", "failed", "archived"].map((v) => (
+              <SelectItem key={v} value={v}>
+                {v.charAt(0).toUpperCase() + v.slice(1)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
+        {hasFilters && (
+          <Button variant="ghost" size="sm" className="h-9 text-slate-500" onClick={clearFilters}>
+            Reset
+          </Button>
+        )}
+        <span className="ml-auto flex items-center gap-1.5 pr-1 text-xs text-slate-400">
+          <HardDrive className="h-3.5 w-3.5" />
+          {formatBytes(totalBytes)} on this page
+        </span>
       </div>
 
       <DataTable
         caption="Knowledge documents"
         columns={columns}
-        rows={documents.data?.items ?? []}
+        rows={items}
         rowKey={(d) => d.id}
         isLoading={documents.isLoading}
         error={documents.error}
@@ -378,20 +566,61 @@ function KnowledgePage() {
         total={documents.data?.total ?? 0}
         onPageChange={setPage}
         sort={sort}
-        onSortChange={(s) => {
-          setSort(s);
+        onSortChange={(next) => {
+          setSort(next);
           setPage(1);
         }}
+        exportName="knowledge-documents"
+        selectable
+        selected={selected}
+        onSelectionChange={setSelected}
+        bulkActions={(ids) => (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={bulkMutation.isPending}
+              onClick={() => bulkMutation.mutate({ ids: [...ids], action: "active" })}
+            >
+              {bulkMutation.isPending && <Loader2 className="mr-1.5 h-3 w-3 animate-spin" />}
+              Activate
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={bulkMutation.isPending}
+              onClick={() => bulkMutation.mutate({ ids: [...ids], action: "archived" })}
+            >
+              Archive
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={bulkMutation.isPending}
+              onClick={() => bulkMutation.mutate({ ids: [...ids], action: "retry" })}
+            >
+              Reprocess
+            </Button>
+          </>
+        )}
         empty={
-          search || departmentId !== ALL || status !== ALL ? (
-            <NoResults query={search || "these filters"} onClear={clearFilters} />
+          hasFilters ? (
+            <NoResults query={debouncedSearch || "these filters"} onClear={clearFilters} />
           ) : (
             <EmptyState
               icon={FileText}
               title="No documents yet"
               description="Upload a policy document to give the chatbot something to answer from."
               action={
-                <Button size="sm" onClick={() => setUploadOpen(true)}>
+                <Button
+                  size="sm"
+                  onClick={() => setUploadOpen(true)}
+                  style={{ background: BRAND }}
+                  className="text-white"
+                >
                   Upload document
                 </Button>
               }
@@ -399,6 +628,51 @@ function KnowledgePage() {
           )
         }
       />
+
+      {/* Fills the space below the table with things worth knowing. */}
+      <div className="grid gap-4 lg:grid-cols-2">
+        <section aria-label="Documents by department" className={`${CARD} p-4`}>
+          <div className="mb-1 flex items-center gap-2">
+            <Building2 className="h-4 w-4 text-slate-400" />
+            <h2 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">
+              Documents by department
+            </h2>
+          </div>
+          <p className="mb-3 text-xs text-slate-400">
+            {departmentCount} department{departmentCount === 1 ? "" : "s"} with active content
+          </p>
+          {analytics.isLoading ? (
+            <TableSkeleton rows={4} cols={1} />
+          ) : analytics.isError ? (
+            <ErrorState error={analytics.error} onRetry={() => analytics.refetch()} />
+          ) : (
+            <ResponsiveContainer width="100%" height={200}>
+              <BarChart data={analytics.data?.byDepartment ?? []}>
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                <XAxis dataKey="department" tick={{ fontSize: 10 }} interval={0} />
+                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={20} />
+                <Tooltip cursor={{ fill: "rgba(43,108,243,0.06)" }} />
+                <Bar dataKey="documents" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={28} />
+              </BarChart>
+            </ResponsiveContainer>
+          )}
+        </section>
+
+        <section aria-label="Processing queue" className={`${CARD} p-4`}>
+          <div className="mb-1 flex items-center gap-2">
+            <RefreshCw className="h-4 w-4 text-slate-400" />
+            <h2 className="text-[15px] font-semibold text-slate-900 dark:text-slate-100">
+              Processing queue
+            </h2>
+          </div>
+          <p className="mb-3 text-xs text-slate-400">Documents not yet searchable</p>
+          <QueuePanel
+            items={items.filter((d) => d.status === "processing" || d.status === "failed")}
+            onRetry={(id) => retryMutation.mutate(id)}
+            pending={retryMutation.isPending}
+          />
+        </section>
+      </div>
 
       <UploadDialog
         open={uploadOpen || !!replaceTarget}
@@ -441,6 +715,67 @@ function KnowledgePage() {
       </AlertDialog>
     </div>
   );
+}
+
+/** The queue panel: only ever shows rows from the page in view. */
+function QueuePanel({
+  items,
+  onRetry,
+  pending,
+}: {
+  items: KnowledgeDocument[];
+  onRetry: (id: string) => void;
+  pending: boolean;
+}) {
+  if (items.length === 0) {
+    return (
+      <EmptyState
+        icon={CheckCircle2}
+        title="Queue is clear"
+        description="Every document on this page is processed."
+      />
+    );
+  }
+  return (
+    <ul className="divide-y divide-slate-100 dark:divide-white/[0.06]">
+      {items.map((d) => (
+        <li key={d.id} className="flex items-center gap-3 py-2.5">
+          <span
+            className={`h-2 w-2 shrink-0 rounded-full ${d.status === "processing" ? "animate-pulse bg-blue-500" : "bg-red-500"}`}
+            aria-hidden="true"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm text-slate-800 dark:text-slate-100">{d.title}</p>
+            <p className="truncate text-xs text-slate-400">
+              {d.status === "processing"
+                ? `Attempt ${d.processing_attempts} · chunking and embedding`
+                : (d.processing_error ?? "Failed")}
+            </p>
+          </div>
+          {d.status === "failed" && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="h-7 text-xs"
+              disabled={pending}
+              onClick={() => onRetry(d.id)}
+            >
+              Retry
+            </Button>
+          )}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** "17 Jul 2026" reads faster in a column than a locale-default date string. */
+function formatDate(iso: string): string {
+  return new Date(iso).toLocaleDateString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function UploadDialog({
