@@ -83,10 +83,22 @@ export async function getToken(): Promise<string | null> {
   return inflight;
 }
 
-export async function signIn(email: string, password: string): Promise<AuthUser> {
+/**
+ * Signs in.
+ *
+ * `rememberMe` is honoured by Neon Auth, verified against the live service:
+ * true issues a session cookie with Max-Age=604800 (persists 7 days), false
+ * issues one with no Max-Age (dies with the browser) plus a `dont_remember`
+ * marker. The checkbox is therefore a real control, not decoration.
+ */
+export async function signIn(
+  email: string,
+  password: string,
+  rememberMe = true,
+): Promise<AuthUser> {
   const response = await authFetch("/sign-in/email", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email, password, rememberMe }),
   });
   const body = (await response.json().catch(() => ({}))) as {
     user?: AuthUser;
@@ -106,6 +118,24 @@ export async function signIn(email: string, password: string): Promise<AuthUser>
 
   cached = null; // force a fresh token for the new session
   return body.user;
+}
+
+/**
+ * Starts a password reset.
+ *
+ * Neon Auth answers identically whether or not the address exists — it will not
+ * confirm which emails are registered, and neither will we. Callers should show
+ * the same confirmation regardless.
+ */
+export async function requestPasswordReset(email: string, redirectTo: string): Promise<void> {
+  const response = await authFetch("/request-password-reset", {
+    method: "POST",
+    body: JSON.stringify({ email, redirectTo }),
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { message?: string };
+    throw new AuthError(body.message ?? "Could not send the reset email");
+  }
 }
 
 export async function signOut(): Promise<void> {
