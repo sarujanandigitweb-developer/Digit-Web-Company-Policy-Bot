@@ -130,6 +130,15 @@ interface FollowupData {
   lowConfidence: boolean;
 }
 
+/** Normalises a question for de-duplication: lowercase, trimmed, no trailing
+ *  punctuation — so "What are the working hours?" matches "what are the working hours". */
+function normalizeQuestion(q: string): string {
+  return q
+    .trim()
+    .toLowerCase()
+    .replace(/[?.!\s]+$/, "");
+}
+
 /** Reads the follow-up data part the server appended to the answer message. */
 function extractFollowups(message: UIMessage): FollowupData | null {
   for (const part of message.parts) {
@@ -155,6 +164,9 @@ function Index() {
   const [departments, setDepartments] = useState<{ slug: string; name: string }[]>([]);
   const [picker, setPicker] = useState<Picker>(null);
   const [classifying, setClassifying] = useState(false);
+  // Questions already asked in this conversation, normalised, so a suggestion is
+  // never offered again once it has been sent. Reset when a new chat starts.
+  const [asked, setAsked] = useState<Set<string>>(new Set());
   const sounds = useSounds(sound);
   const reduce = useReducedMotion();
 
@@ -248,6 +260,9 @@ function Index() {
     const t = text.trim();
     if (!t || isLoading || classifying) return;
 
+    // Record it so this exact question is filtered out of future suggestions.
+    setAsked((prev) => new Set(prev).add(normalizeQuestion(t)));
+
     if (department) {
       setInput("");
       send(t, { departmentId: department, sharedOnly: false });
@@ -295,6 +310,7 @@ function Index() {
     setInput("");
     setDepartment(null); // a new conversation starts with no department
     setPicker(null);
+    setAsked(new Set()); // suggestion history is per-conversation
     sounds.send();
   };
 
@@ -337,7 +353,13 @@ function Index() {
                   const last = [...messages].reverse().find((m) => m.role === "assistant");
                   const data = last ? extractFollowups(last) : null;
                   if (!data) return null;
-                  return <Followups data={data} onAsk={submit} onHover={sounds.hover} />;
+                  // Drop any suggestion already asked in this conversation, so a
+                  // clicked question never comes back and none repeat.
+                  const filtered = {
+                    ...data,
+                    suggestions: data.suggestions.filter((s) => !asked.has(normalizeQuestion(s))),
+                  };
+                  return <Followups data={filtered} onAsk={submit} onHover={sounds.hover} />;
                 })()}
                 {picker && (
                   <DepartmentPicker
@@ -687,18 +709,6 @@ function Followups({
   // the answer itself already carries the friendly "couldn't find it" wording.
   if (data.lowConfidence) return null;
 
-  const conf = {
-    high: {
-      label: "High",
-      cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
-    },
-    medium: {
-      label: "Medium",
-      cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
-    },
-    low: { label: "Low", cls: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300" },
-  }[data.confidence];
-
   return (
     <motion.div
       initial={{ opacity: 0, y: 8 }}
@@ -706,43 +716,6 @@ function Followups({
       transition={{ duration: 0.3 }}
       className="ml-0 space-y-3 sm:ml-12"
     >
-      {/* Knowledge source card (Features 2 & 3) */}
-      {data.documents.length > 0 && (
-        <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
-              Answer generated from
-            </span>
-            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${conf.cls}`}>
-              Confidence: {conf.label}
-            </span>
-          </div>
-          <ul className="space-y-1.5">
-            {data.documents.map((doc) => (
-              <li key={doc.id}>
-                <button
-                  type="button"
-                  onClick={() => onAsk(`Tell me more from “${doc.title}”.`)}
-                  onMouseEnter={onHover}
-                  className="group flex w-full items-start gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2b6cf3] dark:hover:bg-white/5"
-                >
-                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
-                  <span className="min-w-0">
-                    <span className="block truncate text-sm font-medium text-slate-800 dark:text-slate-100">
-                      {doc.title}
-                    </span>
-                    <span className="block truncate text-[11px] text-slate-400">
-                      {doc.department} · v{doc.version} · updated{" "}
-                      {new Date(doc.updated_at).toLocaleDateString()}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
       {/* Suggested follow-up questions (Feature 1) */}
       {data.suggestions.length > 0 && (
         <div>
