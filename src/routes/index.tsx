@@ -682,24 +682,10 @@ function Followups({
   onAsk: (q: string) => void;
   onHover: () => void;
 }) {
-  // Feature 6 — low confidence: offer the honest message, not a guess. The gap
-  // is already logged server-side for the team to review.
-  if (data.lowConfidence) {
-    return (
-      <motion.div
-        initial={{ opacity: 0, y: 8 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="ml-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:ml-12 dark:border-amber-900/40 dark:bg-amber-950/30"
-      >
-        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
-          I couldn&rsquo;t find enough information to answer this confidently.
-        </p>
-        <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-300/70">
-          It&rsquo;s been logged as a knowledge gap so the team can add the missing policy.
-        </p>
-      </motion.div>
-    );
-  }
+  // Low confidence is an internal signal, not something the user should see. The
+  // gap is still logged server-side; the UI simply shows no follow-up panel, and
+  // the answer itself already carries the friendly "couldn't find it" wording.
+  if (data.lowConfidence) return null;
 
   const conf = {
     high: {
