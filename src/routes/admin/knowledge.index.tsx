@@ -12,10 +12,13 @@ import {
   Layers,
   Loader2,
   MoreVertical,
+  Pencil,
   RefreshCw,
   Sparkles,
   Trash2,
   Upload,
+  UploadCloud,
+  X,
 } from "lucide-react";
 import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { Button } from "@/components/ui/button";
@@ -62,6 +65,7 @@ import {
 } from "@/components/ui/tooltip";
 import {
   api,
+  ApiError,
   qs,
   type Department,
   type KnowledgeDocument,
@@ -75,7 +79,7 @@ import { StatusBadge } from "@/components/admin/status-badge";
 import { BRAND, CARD, FOCUS_RING, TONE, departmentTone, initials } from "@/components/admin/theme";
 import { Kpi, PageHeader, UserChip } from "@/components/admin/primitives";
 
-export const Route = createFileRoute("/admin/knowledge")({
+export const Route = createFileRoute("/admin/knowledge/")({
   component: KnowledgePage,
 });
 
@@ -103,6 +107,7 @@ function KnowledgePage() {
   const [status, setStatus] = useState(ALL);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [replaceTarget, setReplaceTarget] = useState<KnowledgeDocument | null>(null);
+  const [editing, setEditing] = useState<KnowledgeDocument | null>(null);
   const [deleting, setDeleting] = useState<KnowledgeDocument | null>(null);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [sort, setSort] = useState<SortState>({ key: "created", direction: "desc" });
@@ -394,9 +399,9 @@ function KnowledgePage() {
                 <Eye className="mr-2 h-4 w-4" />
                 View details
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => setReplaceTarget(d)}>
-                <Upload className="mr-2 h-4 w-4" />
-                Replace file
+              <DropdownMenuItem onClick={() => setEditing(d)}>
+                <Pencil className="mr-2 h-4 w-4" />
+                Edit
               </DropdownMenuItem>
               <DropdownMenuItem onClick={() => retryMutation.mutate(d.id)}>
                 <RefreshCw className="mr-2 h-4 w-4" />
@@ -687,6 +692,13 @@ function KnowledgePage() {
         onUploaded={invalidate}
       />
 
+      <EditDocumentDialog
+        document={editing}
+        departments={departments.data?.items ?? []}
+        onOpenChange={(o) => !o && setEditing(null)}
+        onSaved={invalidate}
+      />
+
       <AlertDialog open={!!deleting} onOpenChange={(o) => !o && setDeleting(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
@@ -799,6 +811,10 @@ function UploadDialog({
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [isUploading, setUploading] = useState(false);
+  const [dragging, setDragging] = useState(false);
+
+  const TITLE_MAX = 200;
+  const DESC_MAX = 1000;
 
   useEffect(() => {
     if (!open) return;
@@ -808,7 +824,22 @@ function UploadDialog({
     setDepartmentId(replaces?.department_id ?? "");
     setError(null);
     setProgress(0);
+    setDragging(false);
   }, [open, replaces]);
+
+  /** Accepts a chosen or dropped file: validates the extension, then fills the
+   *  title from the filename if the title is still empty. */
+  function acceptFile(f: File | null) {
+    if (!f) return;
+    const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+    if (!["pdf", "docx", "txt", "md", "markdown"].includes(ext)) {
+      setError("Unsupported file type. Use PDF, DOCX, TXT or Markdown.");
+      return;
+    }
+    setError(null);
+    setFile(f);
+    setTitle((t) => t || f.name.replace(/\.[^.]+$/, ""));
+  }
 
   /**
    * XHR rather than fetch: fetch cannot report upload progress, and a 20MB PDF
@@ -870,64 +901,154 @@ function UploadDialog({
     });
   }
 
+  const canUpload = !isUploading && !!file && !!departmentId && !!title.trim();
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>{replaces ? `Replace “${replaces.title}”` : "Upload document"}</DialogTitle>
-          <DialogDescription>
-            {replaces
-              ? `Uploads v${replaces.version + 1} and archives the current version.`
-              : "PDF, DOCX, TXT or Markdown. Processing runs in the background."}
-          </DialogDescription>
+          <div className="flex items-start gap-3">
+            <span className={`shrink-0 rounded-xl p-2.5 ${TONE.blue.bg}`}>
+              <UploadCloud className={`h-5 w-5 ${TONE.blue.fg}`} />
+            </span>
+            <div className="min-w-0">
+              <DialogTitle>
+                {replaces ? `Replace “${replaces.title}”` : "Upload document"}
+              </DialogTitle>
+              <DialogDescription className="mt-0.5">
+                {replaces
+                  ? `Uploads v${replaces.version + 1} and archives the current version.`
+                  : "PDF, DOCX, TXT or Markdown. Processing runs in the background."}
+              </DialogDescription>
+            </div>
+          </div>
         </DialogHeader>
 
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="space-y-5">
+          {/* Drag-and-drop file zone */}
           <div className="space-y-1.5">
-            <Label htmlFor="file">File</Label>
-            <Input
-              id="file"
+            <Label htmlFor="file-input">File</Label>
+            <input
+              id="file-input"
               type="file"
               ref={fileRef}
               accept={ACCEPT}
-              required
-              onChange={(e) => {
-                const f = e.target.files?.[0] ?? null;
-                setFile(f);
-                if (f && !title) setTitle(f.name.replace(/\.[^.]+$/, ""));
-              }}
+              className="sr-only"
+              onChange={(e) => acceptFile(e.target.files?.[0] ?? null)}
             />
-            {file && (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                {file.name} · {formatBytes(file.size)}
-              </p>
-            )}
+            <div
+              role="button"
+              tabIndex={0}
+              onClick={() => fileRef.current?.click()}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  fileRef.current?.click();
+                }
+              }}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setDragging(true);
+              }}
+              onDragLeave={() => setDragging(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragging(false);
+                acceptFile(e.dataTransfer.files?.[0] ?? null);
+              }}
+              className={`flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-3.5 transition ${FOCUS_RING} ${
+                dragging
+                  ? "border-[#2b6cf3] bg-[#2b6cf3]/[0.06]"
+                  : "border-slate-300 hover:border-slate-400 hover:bg-slate-50 dark:border-white/15 dark:hover:border-white/25 dark:hover:bg-white/[0.03]"
+              }`}
+            >
+              <span
+                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                  file
+                    ? "bg-emerald-500/10 text-emerald-600"
+                    : "bg-slate-100 text-slate-400 dark:bg-white/5"
+                }`}
+              >
+                <FileText className="h-5 w-5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                {file ? (
+                  <>
+                    <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                      {file.name}
+                    </p>
+                    <p className="text-xs text-slate-400">{formatBytes(file.size)}</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                      Choose a file or drag and drop
+                    </p>
+                    <p className="text-xs text-slate-400">PDF, DOCX, TXT, MD · up to 20 MB</p>
+                  </>
+                )}
+              </div>
+              {file ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 shrink-0 text-slate-400 hover:text-red-600"
+                  aria-label="Remove file"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setFile(null);
+                    if (fileRef.current) fileRef.current.value = "";
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              ) : (
+                <span className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-white/15 dark:text-slate-300">
+                  Browse
+                </span>
+              )}
+            </div>
           </div>
 
+          {/* Title with counter */}
           <div className="space-y-1.5">
-            <Label htmlFor="title">Title</Label>
+            <Label htmlFor="title">
+              Title <span className="text-red-500">*</span>
+            </Label>
             <Input
               id="title"
               value={title}
               onChange={(e) => setTitle(e.target.value)}
               required
-              maxLength={200}
+              maxLength={TITLE_MAX}
+              placeholder="Enter a descriptive title for the document"
             />
+            <p className="text-right text-[11px] tabular-nums text-slate-400">
+              {title.length} / {TITLE_MAX}
+            </p>
           </div>
 
+          {/* Description with counter */}
           <div className="space-y-1.5">
             <Label htmlFor="description">Description (optional)</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={2}
-              maxLength={1000}
+              rows={3}
+              maxLength={DESC_MAX}
+              placeholder="Add a short description to help others understand this document"
             />
+            <p className="text-right text-[11px] tabular-nums text-slate-400">
+              {description.length} / {DESC_MAX}
+            </p>
           </div>
 
           <div className="space-y-1.5">
-            <Label htmlFor="dept">Department</Label>
+            <Label htmlFor="dept">
+              Department <span className="text-red-500">*</span>
+            </Label>
             <Select value={departmentId} onValueChange={setDepartmentId} disabled={!!replaces}>
               <SelectTrigger id="dept">
                 <SelectValue placeholder="Select a department" />
@@ -942,15 +1063,15 @@ function UploadDialog({
                   ))}
               </SelectContent>
             </Select>
-            {replaces && (
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                A replacement stays in the original department.
-              </p>
-            )}
+            <p className="text-xs text-slate-500 dark:text-slate-400">
+              {replaces
+                ? "A replacement stays in the original department."
+                : "The document will be searchable within the selected department."}
+            </p>
           </div>
 
           {isUploading && (
-            <div className="space-y-1">
+            <div className="space-y-1.5">
               <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
                 <div
                   className="h-full rounded-full transition-all"
@@ -976,21 +1097,188 @@ function UploadDialog({
             </p>
           )}
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 border-t border-slate-100 pt-4 dark:border-white/[0.06]">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
             <Button
               type="submit"
-              disabled={isUploading || !file || !departmentId || !title}
+              disabled={!canUpload}
               style={{ background: BRAND }}
-              className="text-white"
+              className="gap-2 text-white"
             >
-              {isUploading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {isUploading ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <UploadCloud className="h-4 w-4" />
+              )}
               {replaces ? "Upload replacement" : "Upload"}
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+/**
+ * Edits a document's metadata — title, description, department — without
+ * re-uploading the file. This is the answer to "the department was set wrong":
+ * correct it here instead of re-uploading (which the duplicate-file check would
+ * block anyway). Changing the department re-files the document's chunks too,
+ * handled server-side in one transaction.
+ */
+function EditDocumentDialog({
+  document,
+  departments,
+  onOpenChange,
+  onSaved,
+}: {
+  document: KnowledgeDocument | null;
+  departments: Department[];
+  onOpenChange: (o: boolean) => void;
+  onSaved: () => void;
+}) {
+  const [title, setTitle] = useState("");
+  const [description, setDescription] = useState("");
+  const [departmentId, setDepartmentId] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!document) return;
+    setTitle(document.title);
+    setDescription(document.description ?? "");
+    setDepartmentId(document.department_id);
+    setFieldErrors({});
+    setFormError(null);
+  }, [document]);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.patch<KnowledgeDocument>(`/api/admin/knowledge/${document!.id}`, {
+        title: title.trim(),
+        description: description.trim() || null,
+        departmentId,
+      }),
+    onSuccess: () => {
+      toast.success("Document updated");
+      onOpenChange(false);
+      onSaved();
+    },
+    onError: (e) => {
+      if (e instanceof ApiError && e.isValidation && e.details) {
+        setFieldErrors(Object.fromEntries(e.details.map((d) => [d.path, d.message])));
+      } else {
+        setFormError(e instanceof Error ? e.message : "Could not save");
+      }
+    },
+  });
+
+  const movingDepartment = !!document && departmentId !== document.department_id;
+
+  return (
+    <Dialog open={!!document} onOpenChange={onOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit document</DialogTitle>
+          <DialogDescription>
+            Update the title, description or department. The file and its processed content are
+            unchanged.
+          </DialogDescription>
+        </DialogHeader>
+
+        {document && (
+          <form
+            className="space-y-4"
+            onSubmit={(e) => {
+              e.preventDefault();
+              setFieldErrors({});
+              setFormError(null);
+              mutation.mutate();
+            }}
+          >
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-title">Title</Label>
+              <Input
+                id="edit-title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                maxLength={200}
+              />
+              {fieldErrors.title && (
+                <p className="text-xs text-red-600" role="alert">
+                  {fieldErrors.title}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-desc">Description</Label>
+              <Textarea
+                id="edit-desc"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                maxLength={1000}
+                placeholder="What this document covers…"
+              />
+            </div>
+
+            <div className="space-y-1.5">
+              <Label htmlFor="edit-dept">Department</Label>
+              <Select value={departmentId} onValueChange={setDepartmentId}>
+                <SelectTrigger id="edit-dept">
+                  <SelectValue placeholder="Select a department" />
+                </SelectTrigger>
+                <SelectContent>
+                  {departments
+                    .filter((d) => d.status === "active" || d.id === document.department_id)
+                    .map((d) => (
+                      <SelectItem key={d.id} value={d.id}>
+                        {d.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              {fieldErrors.departmentId ? (
+                <p className="text-xs text-red-600" role="alert">
+                  {fieldErrors.departmentId}
+                </p>
+              ) : movingDepartment ? (
+                <p className="text-xs text-amber-600 dark:text-amber-400">
+                  Moving this document re-files its {document.chunk_count} chunks into the new
+                  department.
+                </p>
+              ) : null}
+            </div>
+
+            {formError && (
+              <p
+                role="alert"
+                className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
+              >
+                {formError}
+              </p>
+            )}
+
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+                Cancel
+              </Button>
+              <Button
+                type="submit"
+                disabled={mutation.isPending || !title.trim()}
+                style={{ background: BRAND }}
+                className="text-white"
+              >
+                {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+                Save changes
+              </Button>
+            </DialogFooter>
+          </form>
+        )}
       </DialogContent>
     </Dialog>
   );

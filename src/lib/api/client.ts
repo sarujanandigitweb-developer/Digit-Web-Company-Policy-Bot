@@ -111,6 +111,7 @@ export interface Department {
   name: string;
   description: string | null;
   status: "active" | "inactive";
+  is_shared: boolean;
   document_count: number;
   created_at: string;
   updated_at: string;

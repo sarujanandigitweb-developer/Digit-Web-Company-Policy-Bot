@@ -224,10 +224,23 @@ export interface ChatStreamRequest {
  * @throws {NoProvidersConfiguredError} when no provider has a key
  * @throws {AllProvidersFailedError} when every configured provider failed
  */
-export async function streamChatWithFallback({
+export async function streamChatWithFallback(req: ChatStreamRequest): Promise<Response> {
+  return createUIMessageStreamResponse({ stream: await streamChatBody(req) });
+}
+
+/**
+ * The same provider-fallback walk, but it returns the raw UI-message stream
+ * instead of a Response. A caller can then forward it and merge extra parts
+ * (e.g. follow-up suggestions) into the same stream before responding, without
+ * a second request or any change to how the model is chosen.
+ *
+ * @throws {NoProvidersConfiguredError} when no provider has a key
+ * @throws {AllProvidersFailedError} when every configured provider failed
+ */
+export async function streamChatBody({
   system,
   messages,
-}: ChatStreamRequest): Promise<Response> {
+}: ChatStreamRequest): Promise<ReadableStream<UIMessageChunk>> {
   const chain = resolveProviderChain();
   if (chain.length === 0) throw new NoProvidersConfiguredError();
 
@@ -241,7 +254,7 @@ export async function streamChatWithFallback({
         ? ` (fell back from ${failures.map((f) => f.provider).join(" → ")})`
         : "";
       log(`answering with ${provider.id} · ${provider.modelId}${via}`);
-      return createUIMessageStreamResponse({ stream: attempt.stream });
+      return attempt.stream;
     }
 
     failures.push({ provider: provider.id, modelId: provider.modelId, reason: attempt.reason });

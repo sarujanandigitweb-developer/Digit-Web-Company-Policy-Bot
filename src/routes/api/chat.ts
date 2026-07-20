@@ -1,9 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { type UIMessage } from "ai";
+import {
+  createUIMessageStream,
+  createUIMessageStreamResponse,
+  type UIMessage,
+  type UIMessageChunk,
+} from "ai";
 import {
   AllProvidersFailedError,
   hasConfiguredProvider,
   NoProvidersConfiguredError,
+  streamChatBody,
   streamChatWithFallback,
 } from "@/lib/ai/gateway.server";
 import { fetchTranscript } from "@/lib/transcript.server";
@@ -14,11 +20,15 @@ import {
   resolveDepartment,
   RETRIEVAL_ENABLED,
 } from "@/lib/services/chat-knowledge.server";
+import { buildFollowups } from "@/lib/services/followups.server";
 
 interface ChatRequestBody {
   messages?: UIMessage[];
   /** Department slug or id. Absent/"all" means search every department. */
   departmentId?: string | null;
+  /** General question with no department chosen yet: search shared knowledge
+   *  only. Takes precedence over departmentId. */
+  sharedOnly?: boolean;
   sessionId?: string | null;
 }
 
@@ -55,26 +65,35 @@ export const Route = createFileRoute("/api/chat")({
         const question = latestQuestion(messages);
         if (!question) return new Response("No question found in messages", { status: 400 });
 
-        // "all" (or nothing) is a global search. An unknown slug also resolves to
-        // null rather than erroring — a stale picker value should widen the
-        // search, not break the chat.
+        // Shared-only (a general question before a department is chosen) wins:
+        // no department, no global. Otherwise resolve the department; an unknown
+        // slug resolves to null. "all"/nothing without sharedOnly stays global,
+        // which preserves admin/explicit-All backend support.
+        const sharedOnly = body.sharedOnly === true;
         const requested =
-          body.departmentId && body.departmentId !== "all" ? body.departmentId : null;
-        const departmentId = await resolveDepartment(requested);
-        const globalSearch = departmentId === null;
+          !sharedOnly && body.departmentId && body.departmentId !== "all"
+            ? body.departmentId
+            : null;
+        const departmentId = sharedOnly ? null : await resolveDepartment(requested);
+        const globalSearch = !sharedOnly && departmentId === null;
 
         let context;
         try {
-          context = await buildKnowledgeContext({ question, departmentId, globalSearch });
+          context = await buildKnowledgeContext({
+            question,
+            departmentId,
+            globalSearch,
+            sharedOnly,
+          });
         } catch (error) {
           console.error("[api/chat] retrieval failed:", error);
           return new Response("Could not search the knowledge base.", { status: 502 });
         }
 
         const startedAt = Date.now();
-        let response: Response;
+        let modelStream: ReadableStream<UIMessageChunk>;
         try {
-          response = await streamChatWithFallback({ system: context.system, messages });
+          modelStream = await streamChatBody({ system: context.system, messages });
         } catch (e) {
           if (e instanceof AllProvidersFailedError) {
             console.error(`[api/chat] ${e.message}`);
@@ -88,12 +107,35 @@ export const Route = createFileRoute("/api/chat")({
             `confidence=${context.confidence.toFixed(3)}`,
         );
 
-        // Tee the stream: one copy goes to the browser untouched, the other is
-        // read here to capture the finished answer. Without the tee we would have
-        // to buffer the whole reply before sending it, which would kill streaming.
-        const [toClient, toRecorder] = (response.body ?? new ReadableStream()).tee();
+        // One copy of the model stream is merged into the response for the
+        // browser; the other is read here to capture the finished answer for
+        // recording. tee() lets both consume the same bytes independently.
+        const [forClient, forRecord] = modelStream.tee();
 
-        void collectAnswer(toRecorder)
+        // The follow-up data part is built from the SAME retrieved context — no
+        // second vector search — and written into the answer's message. Its
+        // position in the stream does not dictate where the UI shows it; the
+        // frontend reads it from message.parts and renders it under the answer.
+        const uiStream = createUIMessageStream({
+          originalMessages: messages,
+          onError: (err) => {
+            console.error("[api/chat] ui stream error:", err);
+            return "Something went wrong.";
+          },
+          execute: async ({ writer }) => {
+            try {
+              const followups = await buildFollowups(context);
+              writer.write({ type: "data-followups", data: followups } as UIMessageChunk);
+            } catch (err) {
+              console.error("[api/chat] follow-up build failed:", err);
+            }
+            // merge() forwards the model's message framing correctly — the answer
+            // streams exactly as before.
+            writer.merge(forClient);
+          },
+        });
+
+        void collectAnswer(forRecord)
           .then((answer) =>
             recordExchange({
               sessionId: body.sessionId ?? null,
@@ -106,39 +148,24 @@ export const Route = createFileRoute("/api/chat")({
           )
           .catch((error) => console.error("[api/chat] recording failed:", error));
 
-        return new Response(toClient, {
-          status: response.status,
-          headers: response.headers,
-        });
+        return createUIMessageStreamResponse({ stream: uiStream });
       },
     },
   },
 });
 
-/** Reassembles the assistant's text from the UI message stream. */
-async function collectAnswer(stream: ReadableStream<Uint8Array>): Promise<string> {
+/** Reassembles the assistant's text from the UI-message chunk stream. */
+async function collectAnswer(stream: ReadableStream<UIMessageChunk>): Promise<string> {
   const reader = stream.getReader();
-  const decoder = new TextDecoder();
-  let buffer = "";
   let answer = "";
-
-  for (;;) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    buffer += decoder.decode(value, { stream: true });
-
-    // SSE frames are newline-delimited; keep the trailing partial line.
-    const lines = buffer.split("\n");
-    buffer = lines.pop() ?? "";
-    for (const line of lines) {
-      if (!line.startsWith("data: ")) continue;
-      try {
-        const chunk = JSON.parse(line.slice(6)) as { type?: string; delta?: string };
-        if (chunk.type === "text-delta" && chunk.delta) answer += chunk.delta;
-      } catch {
-        // Non-JSON keepalives and [DONE] markers are expected.
-      }
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (value.type === "text-delta" && value.delta) answer += value.delta;
     }
+  } finally {
+    reader.releaseLock();
   }
   return answer;
 }

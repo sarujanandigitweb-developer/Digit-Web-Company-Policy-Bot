@@ -36,6 +36,16 @@ export const setStatusSchema = z.object({
   status: z.enum(["active", "archived", "inactive"]),
 });
 
+/** Editing a document's metadata — title, description, department — without
+ *  re-uploading the file. At least one field must be present. */
+export const updateDocumentSchema = z
+  .object({
+    title: z.string().trim().min(1).max(200).optional(),
+    description: z.string().trim().max(1000).nullable().optional(),
+    departmentId: uuid.optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, { message: "No fields to update" });
+
 export const chunksQuerySchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
   offset: z.coerce.number().int().min(0).default(0),

@@ -31,7 +31,7 @@ const MAX_CHUNKS = Number(process.env.KNOWLEDGE_CHUNK_LIMIT ?? 8);
 export interface KnowledgeContext {
   system: string;
   chunks: RetrievedChunk[];
-  scope: "department" | "global";
+  scope: "department" | "global" | "shared";
   /** Best chunk similarity — 0 when nothing was retrieved. */
   confidence: number;
   departmentId: string | null;
@@ -86,6 +86,8 @@ export async function buildKnowledgeContext(options: {
   question: string;
   departmentId: string | null;
   globalSearch: boolean;
+  /** General question asked before a department is chosen — shared only. */
+  sharedOnly?: boolean;
 }): Promise<KnowledgeContext> {
   const { chunks, scope } = await retrieveForUser({
     query: options.question,
@@ -94,6 +96,7 @@ export async function buildKnowledgeContext(options: {
     // permission — there is no login on the chat.
     globalAccess: options.globalSearch,
     explicitGlobal: options.globalSearch,
+    sharedOnly: options.sharedOnly,
     limit: MAX_CHUNKS,
   });
 
@@ -103,9 +106,10 @@ export async function buildKnowledgeContext(options: {
     return {
       system:
         `You are "Ask the Digit", the DIGIT WEB LANKA policy assistant.\n\n` +
-        `No policy content was found for this question. Tell the user plainly that ` +
-        `the knowledge base does not cover it and suggest they contact the relevant ` +
-        `department. Do not answer from general knowledge, and do not invent sources.`,
+        `No matching policy content was found in the selected department or in shared ` +
+        `company-wide knowledge. Reply with exactly: "I couldn't find any information ` +
+        `for this question in the selected department." Do not answer from general ` +
+        `knowledge, do not search other departments, and do not invent sources.`,
       chunks,
       scope,
       confidence,

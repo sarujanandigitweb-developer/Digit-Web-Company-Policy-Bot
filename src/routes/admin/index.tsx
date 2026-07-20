@@ -33,7 +33,7 @@ import { CardSkeleton, EmptyState, ErrorState, TableSkeleton } from "@/component
 import { StatusBadge } from "@/components/admin/status-badge";
 import { ConfidencePill } from "@/components/admin/confidence-pill";
 import { Kpi, PageHeader } from "@/components/admin/primitives";
-import type { ConversationRow } from "./conversations";
+import type { ConversationRow } from "./conversations.index";
 
 export const Route = createFileRoute("/admin/")({
   component: DashboardPage,
@@ -297,15 +297,48 @@ function DashboardPage() {
             {analytics.isLoading ? (
               <TableSkeleton rows={4} cols={1} />
             ) : (
-              <ResponsiveContainer width="100%" height={210}>
-                <BarChart data={analytics.data?.byDepartment ?? []}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                  <XAxis dataKey="department" tick={{ fontSize: 10 }} interval={0} />
-                  <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={20} />
-                  <Tooltip content={<ChartTip />} cursor={{ fill: "rgba(43,108,243,0.06)" }} />
-                  <Bar dataKey="documents" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={28} />
-                </BarChart>
-              </ResponsiveContainer>
+              (() => {
+                // Horizontal bars: with many long department names, a vertical
+                // chart crushes the x-axis into an unreadable strip. Here each
+                // department gets its own row. Sorted so the fullest read first,
+                // and the area scrolls when there are more departments than fit.
+                const data = [...(analytics.data?.byDepartment ?? [])].sort(
+                  (a, b) => b.documents - a.documents,
+                );
+                const chartHeight = Math.max(210, data.length * 26);
+                return (
+                  <div className="max-h-[260px] overflow-y-auto pr-1">
+                    <ResponsiveContainer width="100%" height={chartHeight}>
+                      <BarChart
+                        data={data}
+                        layout="vertical"
+                        margin={{ top: 0, right: 12, bottom: 0, left: 4 }}
+                        barCategoryGap="20%"
+                      >
+                        <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                        <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
+                        <YAxis
+                          type="category"
+                          dataKey="department"
+                          tick={{ fontSize: 11 }}
+                          width={130}
+                          tickFormatter={(v: string) => (v.length > 18 ? `${v.slice(0, 17)}…` : v)}
+                        />
+                        <Tooltip
+                          content={<ChartTip />}
+                          cursor={{ fill: "rgba(43,108,243,0.06)" }}
+                        />
+                        <Bar
+                          dataKey="documents"
+                          fill={BRAND}
+                          radius={[0, 4, 4, 0]}
+                          maxBarSize={18}
+                        />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                );
+              })()
             )}
           </div>
         </Panel>

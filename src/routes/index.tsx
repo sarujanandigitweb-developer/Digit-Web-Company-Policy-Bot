@@ -15,6 +15,9 @@ import {
   VolumeX,
   FileText,
   Sparkles,
+  Building2,
+  Check,
+  ChevronDown,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -111,17 +114,51 @@ function renderText(message: UIMessage): string {
   return message.parts.map((p) => (p.type === "text" ? p.text : "")).join("");
 }
 
+/* ---------- follow-up suggestions (from the answer's data part) ---------- */
+interface FollowupData {
+  suggestions: string[];
+  documents: Array<{
+    id: string;
+    title: string;
+    department: string;
+    version: number;
+    updated_at: string;
+  }>;
+  chips: string[];
+  confidence: "high" | "medium" | "low";
+  scope: "department" | "shared" | "global";
+  lowConfidence: boolean;
+}
+
+/** Reads the follow-up data part the server appended to the answer message. */
+function extractFollowups(message: UIMessage): FollowupData | null {
+  for (const part of message.parts) {
+    // Custom data parts arrive as { type: "data-followups", data }.
+    if ((part as { type?: string }).type === "data-followups") {
+      return (part as { data?: FollowupData }).data ?? null;
+    }
+  }
+  return null;
+}
+
 /* ---------- component ---------- */
+/** Which department the picker card is asking about, and why. */
+type Picker = { reason: "required" | "change"; question?: string } | null;
+
 function Index() {
   const [input, setInput] = useState("");
   const [dark, setDark] = useState(false);
   const [sound, setSound] = useState(false);
-  const [department, setDepartment] = useState("all");
+  // null = no department chosen yet. General questions answer from shared
+  // knowledge; a department-specific question prompts for a department.
+  const [department, setDepartment] = useState<string | null>(null);
   const [departments, setDepartments] = useState<{ slug: string; name: string }[]>([]);
+  const [picker, setPicker] = useState<Picker>(null);
+  const [classifying, setClassifying] = useState(false);
   const sounds = useSounds(sound);
   const reduce = useReducedMotion();
 
-  // Only departments with active documents are offered — see /api/departments.
+  // The user-facing department list (Shared/system departments excluded).
   useEffect(() => {
     let cancelled = false;
     fetch("/api/departments")
@@ -130,27 +167,38 @@ function Index() {
         if (!cancelled) setDepartments(d.items ?? []);
       })
       .catch(() => {
-        /* picker just stays on "All departments" */
+        /* the picker just stays empty; general questions still work */
       });
     return () => {
       cancelled = true;
     };
   }, []);
 
-  // The selected department rides along with every request. Read from a ref so
-  // changing it mid-conversation applies to the next question without
-  // re-creating the transport (which would drop the in-flight stream).
-  const departmentRef = useRef(department);
-  departmentRef.current = department;
+  // How the NEXT sendMessage should be scoped. Set immediately before each send,
+  // read by the transport — a ref so changing scope never re-creates the
+  // transport (which would drop an in-flight stream).
+  const sendConfigRef = useRef<{ departmentId: string | null; sharedOnly: boolean }>({
+    departmentId: null,
+    sharedOnly: true,
+  });
 
   const { messages, sendMessage, status, error, setMessages } = useChat({
     transport: new DefaultChatTransport({
       api: "/api/chat",
       prepareSendMessagesRequest: ({ messages, body }) => ({
-        body: { ...body, messages, departmentId: departmentRef.current },
+        body: {
+          ...body,
+          messages,
+          departmentId: sendConfigRef.current.departmentId,
+          sharedOnly: sendConfigRef.current.sharedOnly,
+        },
       }),
     }),
   });
+
+  const departmentName = department
+    ? (departments.find((d) => d.slug === department)?.name ?? department)
+    : null;
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -183,17 +231,70 @@ function Index() {
     el.style.height = Math.min(160, el.scrollHeight) + "px";
   }, [input]);
 
-  const submit = (text: string) => {
-    const t = text.trim();
-    if (!t || isLoading) return;
+  /** Streams a question with an explicit scope. */
+  const send = (text: string, config: { departmentId: string | null; sharedOnly: boolean }) => {
+    sendConfigRef.current = config;
     sounds.send();
-    void sendMessage({ text: t });
+    void sendMessage({ text });
+  };
+
+  /**
+   * The routing decision for a new question.
+   *  - department already chosen → search that department + shared.
+   *  - otherwise classify: general → shared only; department-specific → ask which
+   *    department, holding the question to send once one is picked.
+   */
+  const submit = async (text: string) => {
+    const t = text.trim();
+    if (!t || isLoading || classifying) return;
+
+    if (department) {
+      setInput("");
+      send(t, { departmentId: department, sharedOnly: false });
+      return;
+    }
+
     setInput("");
+    setClassifying(true);
+    try {
+      const res = await fetch("/api/chat/intent", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ question: t }),
+      });
+      const data = (await res.json()) as {
+        mode?: string;
+        departments?: { slug: string; name: string }[];
+      };
+      if (data.mode === "general") {
+        send(t, { departmentId: null, sharedOnly: true });
+      } else {
+        if (data.departments?.length) setDepartments(data.departments);
+        setPicker({ reason: "required", question: t });
+      }
+    } catch {
+      // Classifier unreachable: ask for a department (safe — includes shared).
+      setPicker({ reason: "required", question: t });
+    } finally {
+      setClassifying(false);
+    }
+  };
+
+  /** User chose a department, from the "required" prompt or "Change department". */
+  const chooseDepartment = (slug: string) => {
+    setDepartment(slug);
+    const pending = picker;
+    setPicker(null);
+    if (pending?.reason === "required" && pending.question) {
+      send(pending.question, { departmentId: slug, sharedOnly: false });
+    }
   };
 
   const newChat = () => {
     setMessages([]);
     setInput("");
+    setDepartment(null); // a new conversation starts with no department
+    setPicker(null);
     sounds.send();
   };
 
@@ -209,15 +310,14 @@ function Index() {
         setSound={setSound}
         onNewChat={newChat}
         onHover={sounds.hover}
-        department={department}
-        setDepartment={setDepartment}
-        departments={departments}
+        departmentName={departmentName}
+        onChangeDepartment={() => setPicker({ reason: "change" })}
       />
 
       <main className="flex flex-1 flex-col pt-[72px]">
         <div ref={scrollRef} className="flex-1">
           <div className="mx-auto w-full max-w-[1200px] px-4 pb-40 pt-8 sm:px-8 sm:pt-12">
-            {messages.length === 0 ? (
+            {messages.length === 0 && !picker && !classifying ? (
               <Welcome onPick={submit} onHover={sounds.hover} />
             ) : (
               <div className="space-y-6">
@@ -230,7 +330,25 @@ function Index() {
                     />
                   ))}
                 </AnimatePresence>
-                {status === "submitted" && <ThinkingIndicator />}
+                {(status === "submitted" || classifying) && <ThinkingIndicator />}
+                {(() => {
+                  // Follow-ups for the most recent answer, shown once it finishes.
+                  if (isLoading || picker) return null;
+                  const last = [...messages].reverse().find((m) => m.role === "assistant");
+                  const data = last ? extractFollowups(last) : null;
+                  if (!data) return null;
+                  return <Followups data={data} onAsk={submit} onHover={sounds.hover} />;
+                })()}
+                {picker && (
+                  <DepartmentPicker
+                    reason={picker.reason}
+                    question={picker.question}
+                    departments={departments}
+                    current={department}
+                    onChoose={chooseDepartment}
+                    onCancel={() => setPicker(null)}
+                  />
+                )}
                 {error && (
                   <div className="rounded-xl border border-red-200 bg-red-50 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300">
                     Something went wrong. Please try again.
@@ -263,9 +381,8 @@ function Header({
   setSound,
   onNewChat,
   onHover,
-  department,
-  setDepartment,
-  departments,
+  departmentName,
+  onChangeDepartment,
 }: {
   dark: boolean;
   setDark: (v: boolean) => void;
@@ -273,9 +390,8 @@ function Header({
   setSound: (v: boolean) => void;
   onNewChat: () => void;
   onHover: () => void;
-  department: string;
-  setDepartment: (v: string) => void;
-  departments: { slug: string; name: string }[];
+  departmentName: string | null;
+  onChangeDepartment: () => void;
 }) {
   return (
     <header
@@ -310,30 +426,34 @@ function Header({
         </div>
 
         <div className="flex items-center gap-2 sm:gap-3">
-          {/* Replaces the static "Knowledge Base Connected" pill: the same shape,
-              but it now says which knowledge is actually being searched. */}
-          <div className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/85">
-            <span className="relative flex h-2 w-2" aria-hidden="true">
-              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
-              <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+          {/* Department indicator. Before a department is chosen the assistant
+              answers general questions from shared knowledge, so it reads
+              "General". Once chosen, it names the department with a way to change
+              it. The old "All departments" option is intentionally gone. */}
+          <button
+            type="button"
+            onClick={onChangeDepartment}
+            onMouseEnter={onHover}
+            className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs text-white/85 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            aria-label={
+              departmentName
+                ? `Department: ${departmentName}. Change department`
+                : "Choose a department"
+            }
+          >
+            {departmentName ? (
+              <Building2 className="h-3.5 w-3.5" aria-hidden="true" />
+            ) : (
+              <span className="relative flex h-2 w-2" aria-hidden="true">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-70" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-400" />
+              </span>
+            )}
+            <span className="max-w-[120px] truncate font-medium">
+              {departmentName ?? "General"}
             </span>
-            <label htmlFor="department" className="sr-only">
-              Search which department
-            </label>
-            <select
-              id="department"
-              value={department}
-              onChange={(e) => setDepartment(e.target.value)}
-              className="cursor-pointer border-0 bg-transparent pr-1 text-xs text-white/85 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/40 [&>option]:text-slate-900"
-            >
-              <option value="all">All departments</option>
-              {departments.map((d) => (
-                <option key={d.slug} value={d.slug}>
-                  {d.name}
-                </option>
-              ))}
-            </select>
-          </div>
+            <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
+          </button>
           <IconBtn onClick={() => setSound(!sound)} onHover={onHover} label="Toggle sound">
             {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </IconBtn>
@@ -409,8 +529,9 @@ function Welcome({ onPick, onHover }: { onPick: (q: string) => void; onHover: ()
         <span className="ml-0.5 inline-block w-[2px] animate-pulse bg-slate-400">&nbsp;</span>
       </div>
       <p className="mt-4 max-w-md text-sm text-slate-500 dark:text-slate-400">
-        Ask anything about Digit Web Lanka policies. Every answer is grounded in the official
-        manual.
+        👋 I&rsquo;m your company knowledge assistant. I can help with company policies, HR
+        information, department procedures, internal documentation and business processes. Ask a
+        question to get started.
       </p>
 
       <div className="mt-10 grid w-full gap-3 sm:grid-cols-2">
@@ -439,7 +560,248 @@ function Welcome({ onPick, onHover }: { onPick: (q: string) => void; onHover: ()
   );
 }
 
+/* ---------- department picker (in-chat) ---------- */
+function DepartmentPicker({
+  reason,
+  question,
+  departments,
+  current,
+  onChoose,
+  onCancel,
+}: {
+  reason: "required" | "change";
+  question?: string;
+  departments: { slug: string; name: string }[];
+  current: string | null;
+  onChoose: (slug: string) => void;
+  onCancel: () => void;
+}) {
+  const [selected, setSelected] = useState<string | null>(current);
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="flex gap-3"
+    >
+      <div
+        className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black text-white shadow"
+        style={{ background: `linear-gradient(135deg, #2b4a82 0%, ${BRAND} 100%)` }}
+      >
+        D
+      </div>
+      <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900/70">
+        <p className="text-sm text-slate-800 dark:text-slate-100">
+          {reason === "required" ? (
+            <>
+              This question appears to be <span className="font-semibold">department-specific</span>
+              . Please select your department to continue.
+            </>
+          ) : (
+            <>Choose a department for this conversation.</>
+          )}
+        </p>
+        {reason === "required" && question && (
+          <p className="mt-1 truncate text-xs text-slate-400">You asked: “{question}”</p>
+        )}
+
+        {/* Radio list — the Shared/system department is never offered. */}
+        <fieldset className="mt-4">
+          <legend className="sr-only">Select a department</legend>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {departments.map((d) => {
+              const active = selected === d.slug;
+              return (
+                <label
+                  key={d.slug}
+                  className={`flex cursor-pointer items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition ${
+                    active
+                      ? "border-[#2b6cf3] bg-[#2b6cf3]/[0.06] text-slate-900 dark:text-white"
+                      : "border-slate-200 text-slate-700 hover:border-slate-300 dark:border-white/10 dark:text-slate-200 dark:hover:border-white/20"
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="department"
+                    value={d.slug}
+                    checked={active}
+                    onChange={() => setSelected(d.slug)}
+                    className="sr-only"
+                  />
+                  <span
+                    className={`flex h-4 w-4 shrink-0 items-center justify-center rounded-full border ${
+                      active
+                        ? "border-[#2b6cf3] bg-[#2b6cf3]"
+                        : "border-slate-300 dark:border-white/30"
+                    }`}
+                    aria-hidden="true"
+                  >
+                    {active && <Check className="h-2.5 w-2.5 text-white" />}
+                  </span>
+                  <span className="truncate">{d.name}</span>
+                </label>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        <div className="mt-4 flex items-center gap-2">
+          <motion.button
+            whileHover={selected ? { y: -1 } : undefined}
+            whileTap={selected ? { scale: 0.97 } : undefined}
+            disabled={!selected}
+            onClick={() => selected && onChoose(selected)}
+            className="inline-flex items-center gap-1.5 rounded-full px-4 py-2 text-sm font-semibold text-white shadow-md transition disabled:cursor-not-allowed disabled:opacity-50"
+            style={{ background: BRAND }}
+          >
+            <Building2 className="h-4 w-4" />
+            Continue
+          </motion.button>
+          {reason === "change" && (
+            <button
+              onClick={onCancel}
+              className="rounded-full px-3 py-2 text-sm text-slate-500 transition hover:text-slate-800 dark:hover:text-white"
+            >
+              Cancel
+            </button>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
 /* ---------- messages ---------- */
+/* ---------- follow-up suggestions panel ---------- */
+function Followups({
+  data,
+  onAsk,
+  onHover,
+}: {
+  data: FollowupData;
+  onAsk: (q: string) => void;
+  onHover: () => void;
+}) {
+  // Feature 6 — low confidence: offer the honest message, not a guess. The gap
+  // is already logged server-side for the team to review.
+  if (data.lowConfidence) {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="ml-0 rounded-2xl border border-amber-200 bg-amber-50 p-4 sm:ml-12 dark:border-amber-900/40 dark:bg-amber-950/30"
+      >
+        <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+          I couldn&rsquo;t find enough information to answer this confidently.
+        </p>
+        <p className="mt-1 text-xs text-amber-700/80 dark:text-amber-300/70">
+          It&rsquo;s been logged as a knowledge gap so the team can add the missing policy.
+        </p>
+      </motion.div>
+    );
+  }
+
+  const conf = {
+    high: {
+      label: "High",
+      cls: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+    },
+    medium: {
+      label: "Medium",
+      cls: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
+    },
+    low: { label: "Low", cls: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300" },
+  }[data.confidence];
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 8 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3 }}
+      className="ml-0 space-y-3 sm:ml-12"
+    >
+      {/* Knowledge source card (Features 2 & 3) */}
+      {data.documents.length > 0 && (
+        <div className="rounded-2xl border border-slate-200 bg-white/70 p-4 shadow-sm backdrop-blur dark:border-white/10 dark:bg-white/5">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+              Answer generated from
+            </span>
+            <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${conf.cls}`}>
+              Confidence: {conf.label}
+            </span>
+          </div>
+          <ul className="space-y-1.5">
+            {data.documents.map((doc) => (
+              <li key={doc.id}>
+                <button
+                  type="button"
+                  onClick={() => onAsk(`Tell me more from “${doc.title}”.`)}
+                  onMouseEnter={onHover}
+                  className="group flex w-full items-start gap-2 rounded-lg px-1.5 py-1 text-left transition hover:bg-slate-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2b6cf3] dark:hover:bg-white/5"
+                >
+                  <Check className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-600" />
+                  <span className="min-w-0">
+                    <span className="block truncate text-sm font-medium text-slate-800 dark:text-slate-100">
+                      {doc.title}
+                    </span>
+                    <span className="block truncate text-[11px] text-slate-400">
+                      {doc.department} · v{doc.version} · updated{" "}
+                      {new Date(doc.updated_at).toLocaleDateString()}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Suggested follow-up questions (Feature 1) */}
+      {data.suggestions.length > 0 && (
+        <div>
+          <p className="mb-2 flex items-center gap-1.5 text-xs font-medium text-slate-500 dark:text-slate-400">
+            <Sparkles className="h-3.5 w-3.5" style={{ color: BRAND }} />
+            You may also want to ask
+          </p>
+          <div className="flex flex-col gap-2">
+            {data.suggestions.map((q) => (
+              <motion.button
+                key={q}
+                type="button"
+                whileHover={{ x: 2 }}
+                onClick={() => onAsk(q)}
+                onMouseEnter={onHover}
+                className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/80 px-3 py-2 text-left text-sm text-slate-700 shadow-sm transition hover:border-slate-300 hover:shadow focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2b6cf3] dark:border-white/10 dark:bg-white/5 dark:text-slate-200 dark:hover:border-white/20"
+              >
+                <span className="text-slate-300 dark:text-slate-500">→</span>
+                {q}
+              </motion.button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Quick-action topic chips (Feature 4) */}
+      {data.chips.length > 0 && (
+        <div className="flex flex-wrap gap-2">
+          {data.chips.map((chip) => (
+            <button
+              key={chip}
+              type="button"
+              onClick={() => onAsk(`Tell me about ${chip}.`)}
+              onMouseEnter={onHover}
+              className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-medium text-slate-600 transition hover:border-[#2b6cf3] hover:text-[#2b6cf3] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#2b6cf3] dark:border-white/10 dark:bg-white/5 dark:text-slate-300"
+            >
+              {chip}
+            </button>
+          ))}
+        </div>
+      )}
+    </motion.div>
+  );
+}
+
 function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreaming: boolean }) {
   const isUser = message.role === "user";
   const text = renderText(message);

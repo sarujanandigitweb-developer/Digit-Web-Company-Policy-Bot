@@ -19,10 +19,11 @@ import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSearchRouteImport } from './routes/admin/search'
 import { Route as AdminKnowledgeGapsRouteImport } from './routes/admin/knowledge-gaps'
-import { Route as AdminKnowledgeRouteImport } from './routes/admin/knowledge'
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
-import { Route as AdminConversationsRouteImport } from './routes/admin/conversations'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
+import { Route as AdminKnowledgeIndexRouteImport } from './routes/admin/knowledge.index'
+import { Route as AdminConversationsIndexRouteImport } from './routes/admin/conversations.index'
+import { Route as ApiChatIntentRouteImport } from './routes/api/chat.intent'
 import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiAdminSettingsRouteImport } from './routes/api/admin/settings'
 import { Route as ApiAdminKnowledgeRouteImport } from './routes/api/admin/knowledge'
@@ -37,8 +38,10 @@ import { Route as ApiAdminSystemStatusRouteImport } from './routes/api/admin/sys
 import { Route as ApiAdminKnowledgeStatsRouteImport } from './routes/api/admin/knowledge.stats'
 import { Route as ApiAdminKnowledgeSearchRouteImport } from './routes/api/admin/knowledge.search'
 import { Route as ApiAdminKnowledgeIdRouteImport } from './routes/api/admin/knowledge.$id'
+import { Route as ApiAdminGapsBulkDeleteRouteImport } from './routes/api/admin/gaps.bulk-delete'
 import { Route as ApiAdminGapsIdRouteImport } from './routes/api/admin/gaps.$id'
 import { Route as ApiAdminDepartmentsIdRouteImport } from './routes/api/admin/departments.$id'
+import { Route as ApiAdminConversationsBulkDeleteRouteImport } from './routes/api/admin/conversations.bulk-delete'
 import { Route as ApiAdminConversationsIdRouteImport } from './routes/api/admin/conversations.$id'
 import { Route as ApiAdminAnalyticsKnowledgeRouteImport } from './routes/api/admin/analytics.knowledge'
 import { Route as ApiAdminKnowledgeIdRetryRouteImport } from './routes/api/admin/knowledge.$id.retry'
@@ -94,25 +97,30 @@ const AdminKnowledgeGapsRoute = AdminKnowledgeGapsRouteImport.update({
   path: '/knowledge-gaps',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminKnowledgeRoute = AdminKnowledgeRouteImport.update({
-  id: '/knowledge',
-  path: '/knowledge',
-  getParentRoute: () => AdminRoute,
-} as any)
 const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
   id: '/departments',
   path: '/departments',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminConversationsRoute = AdminConversationsRouteImport.update({
-  id: '/conversations',
-  path: '/conversations',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
   id: '/analytics',
   path: '/analytics',
   getParentRoute: () => AdminRoute,
+} as any)
+const AdminKnowledgeIndexRoute = AdminKnowledgeIndexRouteImport.update({
+  id: '/knowledge/',
+  path: '/knowledge/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminConversationsIndexRoute = AdminConversationsIndexRouteImport.update({
+  id: '/conversations/',
+  path: '/conversations/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const ApiChatIntentRoute = ApiChatIntentRouteImport.update({
+  id: '/intent',
+  path: '/intent',
+  getParentRoute: () => ApiChatRoute,
 } as any)
 const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
   id: '/api/admin/users',
@@ -150,14 +158,14 @@ const ApiAdminActivityRoute = ApiAdminActivityRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminKnowledgeIdRoute = AdminKnowledgeIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AdminKnowledgeRoute,
+  id: '/knowledge/$id',
+  path: '/knowledge/$id',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminConversationsIdRoute = AdminConversationsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => AdminConversationsRoute,
+  id: '/conversations/$id',
+  path: '/conversations/$id',
+  getParentRoute: () => AdminRoute,
 } as any)
 const ApiAdminUsersIdRoute = ApiAdminUsersIdRouteImport.update({
   id: '/$id',
@@ -184,6 +192,11 @@ const ApiAdminKnowledgeIdRoute = ApiAdminKnowledgeIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ApiAdminKnowledgeRoute,
 } as any)
+const ApiAdminGapsBulkDeleteRoute = ApiAdminGapsBulkDeleteRouteImport.update({
+  id: '/bulk-delete',
+  path: '/bulk-delete',
+  getParentRoute: () => ApiAdminGapsRoute,
+} as any)
 const ApiAdminGapsIdRoute = ApiAdminGapsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -194,6 +207,12 @@ const ApiAdminDepartmentsIdRoute = ApiAdminDepartmentsIdRouteImport.update({
   path: '/$id',
   getParentRoute: () => ApiAdminDepartmentsRoute,
 } as any)
+const ApiAdminConversationsBulkDeleteRoute =
+  ApiAdminConversationsBulkDeleteRouteImport.update({
+    id: '/bulk-delete',
+    path: '/bulk-delete',
+    getParentRoute: () => ApiAdminConversationsRoute,
+  } as any)
 const ApiAdminConversationsIdRoute = ApiAdminConversationsIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -223,14 +242,12 @@ export interface FileRoutesByFullPath {
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
-  '/admin/conversations': typeof AdminConversationsRouteWithChildren
   '/admin/departments': typeof AdminDepartmentsRoute
-  '/admin/knowledge': typeof AdminKnowledgeRouteWithChildren
   '/admin/knowledge-gaps': typeof AdminKnowledgeGapsRoute
   '/admin/search': typeof AdminSearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/api/chat': typeof ApiChatRoute
+  '/api/chat': typeof ApiChatRouteWithChildren
   '/api/departments': typeof ApiDepartmentsRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/conversations/$id': typeof AdminConversationsIdRoute
@@ -242,10 +259,15 @@ export interface FileRoutesByFullPath {
   '/api/admin/knowledge': typeof ApiAdminKnowledgeRouteWithChildren
   '/api/admin/settings': typeof ApiAdminSettingsRoute
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
+  '/api/chat/intent': typeof ApiChatIntentRoute
+  '/admin/conversations/': typeof AdminConversationsIndexRoute
+  '/admin/knowledge/': typeof AdminKnowledgeIndexRoute
   '/api/admin/analytics/knowledge': typeof ApiAdminAnalyticsKnowledgeRoute
   '/api/admin/conversations/$id': typeof ApiAdminConversationsIdRoute
+  '/api/admin/conversations/bulk-delete': typeof ApiAdminConversationsBulkDeleteRoute
   '/api/admin/departments/$id': typeof ApiAdminDepartmentsIdRoute
   '/api/admin/gaps/$id': typeof ApiAdminGapsIdRoute
+  '/api/admin/gaps/bulk-delete': typeof ApiAdminGapsBulkDeleteRoute
   '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
   '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
@@ -258,14 +280,12 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
-  '/admin/conversations': typeof AdminConversationsRouteWithChildren
   '/admin/departments': typeof AdminDepartmentsRoute
-  '/admin/knowledge': typeof AdminKnowledgeRouteWithChildren
   '/admin/knowledge-gaps': typeof AdminKnowledgeGapsRoute
   '/admin/search': typeof AdminSearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/api/chat': typeof ApiChatRoute
+  '/api/chat': typeof ApiChatRouteWithChildren
   '/api/departments': typeof ApiDepartmentsRoute
   '/admin': typeof AdminIndexRoute
   '/admin/conversations/$id': typeof AdminConversationsIdRoute
@@ -277,10 +297,15 @@ export interface FileRoutesByTo {
   '/api/admin/knowledge': typeof ApiAdminKnowledgeRouteWithChildren
   '/api/admin/settings': typeof ApiAdminSettingsRoute
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
+  '/api/chat/intent': typeof ApiChatIntentRoute
+  '/admin/conversations': typeof AdminConversationsIndexRoute
+  '/admin/knowledge': typeof AdminKnowledgeIndexRoute
   '/api/admin/analytics/knowledge': typeof ApiAdminAnalyticsKnowledgeRoute
   '/api/admin/conversations/$id': typeof ApiAdminConversationsIdRoute
+  '/api/admin/conversations/bulk-delete': typeof ApiAdminConversationsBulkDeleteRoute
   '/api/admin/departments/$id': typeof ApiAdminDepartmentsIdRoute
   '/api/admin/gaps/$id': typeof ApiAdminGapsIdRoute
+  '/api/admin/gaps/bulk-delete': typeof ApiAdminGapsBulkDeleteRoute
   '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
   '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
@@ -295,14 +320,12 @@ export interface FileRoutesById {
   '/admin': typeof AdminRouteWithChildren
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
-  '/admin/conversations': typeof AdminConversationsRouteWithChildren
   '/admin/departments': typeof AdminDepartmentsRoute
-  '/admin/knowledge': typeof AdminKnowledgeRouteWithChildren
   '/admin/knowledge-gaps': typeof AdminKnowledgeGapsRoute
   '/admin/search': typeof AdminSearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
-  '/api/chat': typeof ApiChatRoute
+  '/api/chat': typeof ApiChatRouteWithChildren
   '/api/departments': typeof ApiDepartmentsRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/conversations/$id': typeof AdminConversationsIdRoute
@@ -314,10 +337,15 @@ export interface FileRoutesById {
   '/api/admin/knowledge': typeof ApiAdminKnowledgeRouteWithChildren
   '/api/admin/settings': typeof ApiAdminSettingsRoute
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
+  '/api/chat/intent': typeof ApiChatIntentRoute
+  '/admin/conversations/': typeof AdminConversationsIndexRoute
+  '/admin/knowledge/': typeof AdminKnowledgeIndexRoute
   '/api/admin/analytics/knowledge': typeof ApiAdminAnalyticsKnowledgeRoute
   '/api/admin/conversations/$id': typeof ApiAdminConversationsIdRoute
+  '/api/admin/conversations/bulk-delete': typeof ApiAdminConversationsBulkDeleteRoute
   '/api/admin/departments/$id': typeof ApiAdminDepartmentsIdRoute
   '/api/admin/gaps/$id': typeof ApiAdminGapsIdRoute
+  '/api/admin/gaps/bulk-delete': typeof ApiAdminGapsBulkDeleteRoute
   '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
   '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
@@ -333,9 +361,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/admin/analytics'
-    | '/admin/conversations'
     | '/admin/departments'
-    | '/admin/knowledge'
     | '/admin/knowledge-gaps'
     | '/admin/search'
     | '/admin/settings'
@@ -352,10 +378,15 @@ export interface FileRouteTypes {
     | '/api/admin/knowledge'
     | '/api/admin/settings'
     | '/api/admin/users'
+    | '/api/chat/intent'
+    | '/admin/conversations/'
+    | '/admin/knowledge/'
     | '/api/admin/analytics/knowledge'
     | '/api/admin/conversations/$id'
+    | '/api/admin/conversations/bulk-delete'
     | '/api/admin/departments/$id'
     | '/api/admin/gaps/$id'
+    | '/api/admin/gaps/bulk-delete'
     | '/api/admin/knowledge/$id'
     | '/api/admin/knowledge/search'
     | '/api/admin/knowledge/stats'
@@ -368,9 +399,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/admin/analytics'
-    | '/admin/conversations'
     | '/admin/departments'
-    | '/admin/knowledge'
     | '/admin/knowledge-gaps'
     | '/admin/search'
     | '/admin/settings'
@@ -387,10 +416,15 @@ export interface FileRouteTypes {
     | '/api/admin/knowledge'
     | '/api/admin/settings'
     | '/api/admin/users'
+    | '/api/chat/intent'
+    | '/admin/conversations'
+    | '/admin/knowledge'
     | '/api/admin/analytics/knowledge'
     | '/api/admin/conversations/$id'
+    | '/api/admin/conversations/bulk-delete'
     | '/api/admin/departments/$id'
     | '/api/admin/gaps/$id'
+    | '/api/admin/gaps/bulk-delete'
     | '/api/admin/knowledge/$id'
     | '/api/admin/knowledge/search'
     | '/api/admin/knowledge/stats'
@@ -404,9 +438,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/login'
     | '/admin/analytics'
-    | '/admin/conversations'
     | '/admin/departments'
-    | '/admin/knowledge'
     | '/admin/knowledge-gaps'
     | '/admin/search'
     | '/admin/settings'
@@ -423,10 +455,15 @@ export interface FileRouteTypes {
     | '/api/admin/knowledge'
     | '/api/admin/settings'
     | '/api/admin/users'
+    | '/api/chat/intent'
+    | '/admin/conversations/'
+    | '/admin/knowledge/'
     | '/api/admin/analytics/knowledge'
     | '/api/admin/conversations/$id'
+    | '/api/admin/conversations/bulk-delete'
     | '/api/admin/departments/$id'
     | '/api/admin/gaps/$id'
+    | '/api/admin/gaps/bulk-delete'
     | '/api/admin/knowledge/$id'
     | '/api/admin/knowledge/search'
     | '/api/admin/knowledge/stats'
@@ -440,7 +477,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   LoginRoute: typeof LoginRoute
-  ApiChatRoute: typeof ApiChatRoute
+  ApiChatRoute: typeof ApiChatRouteWithChildren
   ApiDepartmentsRoute: typeof ApiDepartmentsRoute
   ApiAdminActivityRoute: typeof ApiAdminActivityRoute
   ApiAdminConversationsRoute: typeof ApiAdminConversationsRouteWithChildren
@@ -525,25 +562,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminKnowledgeGapsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/knowledge': {
-      id: '/admin/knowledge'
-      path: '/knowledge'
-      fullPath: '/admin/knowledge'
-      preLoaderRoute: typeof AdminKnowledgeRouteImport
-      parentRoute: typeof AdminRoute
-    }
     '/admin/departments': {
       id: '/admin/departments'
       path: '/departments'
       fullPath: '/admin/departments'
       preLoaderRoute: typeof AdminDepartmentsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/conversations': {
-      id: '/admin/conversations'
-      path: '/conversations'
-      fullPath: '/admin/conversations'
-      preLoaderRoute: typeof AdminConversationsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/analytics': {
@@ -552,6 +575,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/analytics'
       preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/admin/knowledge/': {
+      id: '/admin/knowledge/'
+      path: '/knowledge'
+      fullPath: '/admin/knowledge/'
+      preLoaderRoute: typeof AdminKnowledgeIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/conversations/': {
+      id: '/admin/conversations/'
+      path: '/conversations'
+      fullPath: '/admin/conversations/'
+      preLoaderRoute: typeof AdminConversationsIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/api/chat/intent': {
+      id: '/api/chat/intent'
+      path: '/intent'
+      fullPath: '/api/chat/intent'
+      preLoaderRoute: typeof ApiChatIntentRouteImport
+      parentRoute: typeof ApiChatRoute
     }
     '/api/admin/users': {
       id: '/api/admin/users'
@@ -604,17 +648,17 @@ declare module '@tanstack/react-router' {
     }
     '/admin/knowledge/$id': {
       id: '/admin/knowledge/$id'
-      path: '/$id'
+      path: '/knowledge/$id'
       fullPath: '/admin/knowledge/$id'
       preLoaderRoute: typeof AdminKnowledgeIdRouteImport
-      parentRoute: typeof AdminKnowledgeRoute
+      parentRoute: typeof AdminRoute
     }
     '/admin/conversations/$id': {
       id: '/admin/conversations/$id'
-      path: '/$id'
+      path: '/conversations/$id'
       fullPath: '/admin/conversations/$id'
       preLoaderRoute: typeof AdminConversationsIdRouteImport
-      parentRoute: typeof AdminConversationsRoute
+      parentRoute: typeof AdminRoute
     }
     '/api/admin/users/$id': {
       id: '/api/admin/users/$id'
@@ -651,6 +695,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminKnowledgeIdRouteImport
       parentRoute: typeof ApiAdminKnowledgeRoute
     }
+    '/api/admin/gaps/bulk-delete': {
+      id: '/api/admin/gaps/bulk-delete'
+      path: '/bulk-delete'
+      fullPath: '/api/admin/gaps/bulk-delete'
+      preLoaderRoute: typeof ApiAdminGapsBulkDeleteRouteImport
+      parentRoute: typeof ApiAdminGapsRoute
+    }
     '/api/admin/gaps/$id': {
       id: '/api/admin/gaps/$id'
       path: '/$id'
@@ -664,6 +715,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/admin/departments/$id'
       preLoaderRoute: typeof ApiAdminDepartmentsIdRouteImport
       parentRoute: typeof ApiAdminDepartmentsRoute
+    }
+    '/api/admin/conversations/bulk-delete': {
+      id: '/api/admin/conversations/bulk-delete'
+      path: '/bulk-delete'
+      fullPath: '/api/admin/conversations/bulk-delete'
+      preLoaderRoute: typeof ApiAdminConversationsBulkDeleteRouteImport
+      parentRoute: typeof ApiAdminConversationsRoute
     }
     '/api/admin/conversations/$id': {
       id: '/api/admin/conversations/$id'
@@ -696,61 +754,55 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface AdminConversationsRouteChildren {
-  AdminConversationsIdRoute: typeof AdminConversationsIdRoute
-}
-
-const AdminConversationsRouteChildren: AdminConversationsRouteChildren = {
-  AdminConversationsIdRoute: AdminConversationsIdRoute,
-}
-
-const AdminConversationsRouteWithChildren =
-  AdminConversationsRoute._addFileChildren(AdminConversationsRouteChildren)
-
-interface AdminKnowledgeRouteChildren {
-  AdminKnowledgeIdRoute: typeof AdminKnowledgeIdRoute
-}
-
-const AdminKnowledgeRouteChildren: AdminKnowledgeRouteChildren = {
-  AdminKnowledgeIdRoute: AdminKnowledgeIdRoute,
-}
-
-const AdminKnowledgeRouteWithChildren = AdminKnowledgeRoute._addFileChildren(
-  AdminKnowledgeRouteChildren,
-)
-
 interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
-  AdminConversationsRoute: typeof AdminConversationsRouteWithChildren
   AdminDepartmentsRoute: typeof AdminDepartmentsRoute
-  AdminKnowledgeRoute: typeof AdminKnowledgeRouteWithChildren
   AdminKnowledgeGapsRoute: typeof AdminKnowledgeGapsRoute
   AdminSearchRoute: typeof AdminSearchRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  AdminConversationsIdRoute: typeof AdminConversationsIdRoute
+  AdminKnowledgeIdRoute: typeof AdminKnowledgeIdRoute
+  AdminConversationsIndexRoute: typeof AdminConversationsIndexRoute
+  AdminKnowledgeIndexRoute: typeof AdminKnowledgeIndexRoute
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
-  AdminConversationsRoute: AdminConversationsRouteWithChildren,
   AdminDepartmentsRoute: AdminDepartmentsRoute,
-  AdminKnowledgeRoute: AdminKnowledgeRouteWithChildren,
   AdminKnowledgeGapsRoute: AdminKnowledgeGapsRoute,
   AdminSearchRoute: AdminSearchRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
   AdminIndexRoute: AdminIndexRoute,
+  AdminConversationsIdRoute: AdminConversationsIdRoute,
+  AdminKnowledgeIdRoute: AdminKnowledgeIdRoute,
+  AdminConversationsIndexRoute: AdminConversationsIndexRoute,
+  AdminKnowledgeIndexRoute: AdminKnowledgeIndexRoute,
 }
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface ApiChatRouteChildren {
+  ApiChatIntentRoute: typeof ApiChatIntentRoute
+}
+
+const ApiChatRouteChildren: ApiChatRouteChildren = {
+  ApiChatIntentRoute: ApiChatIntentRoute,
+}
+
+const ApiChatRouteWithChildren =
+  ApiChatRoute._addFileChildren(ApiChatRouteChildren)
+
 interface ApiAdminConversationsRouteChildren {
   ApiAdminConversationsIdRoute: typeof ApiAdminConversationsIdRoute
+  ApiAdminConversationsBulkDeleteRoute: typeof ApiAdminConversationsBulkDeleteRoute
 }
 
 const ApiAdminConversationsRouteChildren: ApiAdminConversationsRouteChildren = {
   ApiAdminConversationsIdRoute: ApiAdminConversationsIdRoute,
+  ApiAdminConversationsBulkDeleteRoute: ApiAdminConversationsBulkDeleteRoute,
 }
 
 const ApiAdminConversationsRouteWithChildren =
@@ -771,10 +823,12 @@ const ApiAdminDepartmentsRouteWithChildren =
 
 interface ApiAdminGapsRouteChildren {
   ApiAdminGapsIdRoute: typeof ApiAdminGapsIdRoute
+  ApiAdminGapsBulkDeleteRoute: typeof ApiAdminGapsBulkDeleteRoute
 }
 
 const ApiAdminGapsRouteChildren: ApiAdminGapsRouteChildren = {
   ApiAdminGapsIdRoute: ApiAdminGapsIdRoute,
+  ApiAdminGapsBulkDeleteRoute: ApiAdminGapsBulkDeleteRoute,
 }
 
 const ApiAdminGapsRouteWithChildren = ApiAdminGapsRoute._addFileChildren(
@@ -825,7 +879,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   LoginRoute: LoginRoute,
-  ApiChatRoute: ApiChatRoute,
+  ApiChatRoute: ApiChatRouteWithChildren,
   ApiDepartmentsRoute: ApiDepartmentsRoute,
   ApiAdminActivityRoute: ApiAdminActivityRoute,
   ApiAdminConversationsRoute: ApiAdminConversationsRouteWithChildren,

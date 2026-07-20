@@ -3,15 +3,22 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 import {
+  AlertCircle,
   Ban,
   Building2,
   CheckCircle2,
+  Eye,
+  EyeOff,
   Loader2,
+  Lock,
+  Mail,
   MoreVertical,
   Plus,
   ShieldCheck,
   Trash2,
+  User as UserIcon,
   UserPen,
+  UserPlus,
   Users as UsersIcon,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -54,7 +61,15 @@ import { useDebounced } from "@/hooks/use-debounced";
 import { DataTable, type Column, type SortState } from "@/components/admin/data-table";
 import { EmptyState, NoResults } from "@/components/admin/states";
 import { StatusBadge } from "@/components/admin/status-badge";
-import { BRAND, CARD, TONE, departmentTone } from "@/components/admin/theme";
+import {
+  BRAND,
+  CARD,
+  FOCUS_RING,
+  TILE_GRADIENT,
+  TONE,
+  departmentTone,
+  initials,
+} from "@/components/admin/theme";
 import { Kpi, PageHeader, UserChip } from "@/components/admin/primitives";
 
 export const Route = createFileRoute("/admin/users")({
@@ -281,7 +296,7 @@ function UsersPage() {
             style={{ background: BRAND }}
             onClick={() => setCreateOpen(true)}
           >
-            <Plus className="h-3.5 w-3.5" />
+            <UserPlus className="h-3.5 w-3.5" />
             New user
           </Button>
         }
@@ -533,6 +548,7 @@ function UserFormDialog({
   const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [role, setRole] = useState<string>("staff");
   const [departmentId, setDepartmentId] = useState<string>(ALL);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
@@ -544,6 +560,7 @@ function UserFormDialog({
     setFullName(user?.full_name ?? "");
     setEmail(user?.email ?? "");
     setPassword("");
+    setShowPassword(false);
     setRole(user?.role ?? "staff");
     setDepartmentId(user?.department_id ?? ALL);
     setFieldErrors({});
@@ -579,20 +596,37 @@ function UserFormDialog({
     },
   });
 
+  // Live preview of the avatar the table will show — the initials update as the
+  // name is typed, so the row is recognisable before it exists.
+  const previewName = fullName.trim() || (isEdit ? user!.full_name : "");
+  const roleTone = role === "super_admin" ? TONE.brand : role === "admin" ? TONE.blue : TONE.slate;
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
-          <DialogTitle>{isEdit ? `Edit ${user!.full_name}` : "New user"}</DialogTitle>
-          <DialogDescription>
-            {isEdit
-              ? "Update this account. Role changes require super admin."
-              : "Creates the login and the profile together."}
-          </DialogDescription>
-        </DialogHeader>
+      <DialogContent className="gap-0 overflow-hidden p-0 sm:max-w-[460px]">
+        {/* A tinted header band anchors the dialog and shows the live avatar. */}
+        <div className="flex items-center gap-3.5 border-b border-slate-100 bg-gradient-to-b from-slate-50 to-transparent px-6 py-5 dark:border-white/[0.06] dark:from-white/[0.03]">
+          <span
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-sm font-semibold text-white"
+            style={{ background: TILE_GRADIENT }}
+            aria-hidden="true"
+          >
+            {previewName ? initials(previewName) : <UserPlus className="h-5 w-5" />}
+          </span>
+          <div className="min-w-0">
+            <DialogTitle className="truncate text-[17px] font-semibold tracking-[-0.01em]">
+              {isEdit ? `Edit ${user!.full_name}` : "New user"}
+            </DialogTitle>
+            <DialogDescription className="mt-0.5 text-xs">
+              {isEdit
+                ? "Update this account. Role changes require super admin."
+                : "Creates the login and the profile together."}
+            </DialogDescription>
+          </div>
+        </div>
 
         <form
-          className="space-y-4"
+          className="space-y-4 px-6 py-5"
           onSubmit={(e) => {
             e.preventDefault();
             setFieldErrors({});
@@ -600,79 +634,115 @@ function UserFormDialog({
             mutation.mutate();
           }}
         >
-          <Field label="Full name" htmlFor="fullName" error={fieldErrors.fullName}>
+          <Field label="Full name" htmlFor="fullName" icon={UserIcon} error={fieldErrors.fullName}>
             <Input
               id="fullName"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+              placeholder="e.g. Priya Kumar"
+              className="h-10 pl-9"
               required
             />
           </Field>
 
           {!isEdit && (
             <>
-              <Field label="Email" htmlFor="email" error={fieldErrors.email}>
+              <Field
+                label="Email address"
+                htmlFor="email"
+                icon={Mail}
+                error={fieldErrors.email}
+                hint="Used for sign in and notifications."
+              >
                 <Input
                   id="email"
                   type="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@digitweb.lk"
+                  className="h-10 pl-9"
                   required
                 />
               </Field>
-              <Field label="Password" htmlFor="password" error={fieldErrors.password}>
+              <Field
+                label="Password"
+                htmlFor="password"
+                icon={Lock}
+                error={fieldErrors.password}
+                hint="Minimum 8 characters."
+              >
                 <Input
                   id="password"
-                  type="password"
+                  type={showPassword ? "text" : "password"}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  placeholder="••••••••"
+                  className="h-10 pl-9 pr-9"
                   minLength={8}
                   required
                 />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword((v) => !v)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
+                  className={`absolute right-2.5 top-1/2 -translate-y-1/2 rounded text-slate-400 transition hover:text-slate-600 dark:hover:text-slate-300 ${FOCUS_RING}`}
+                >
+                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                </button>
               </Field>
             </>
           )}
 
-          <Field label="Role" htmlFor="role" error={fieldErrors.role}>
-            <Select value={role} onValueChange={setRole}>
-              <SelectTrigger id="role">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="staff">Staff</SelectItem>
-                <SelectItem value="admin">Admin</SelectItem>
-                <SelectItem value="super_admin">Super Admin</SelectItem>
-              </SelectContent>
-            </Select>
-          </Field>
+          {/* Role and department read as a pair — a role decides whether the
+              department is required, so they belong on one row. */}
+          <div className="grid grid-cols-2 gap-3">
+            <Field label="Role" htmlFor="role" icon={ShieldCheck} error={fieldErrors.role}>
+              <Select value={role} onValueChange={setRole}>
+                <SelectTrigger id="role" className="h-10 pl-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="admin">Admin</SelectItem>
+                  <SelectItem value="super_admin">Super Admin</SelectItem>
+                </SelectContent>
+              </Select>
+            </Field>
 
-          <Field
-            label="Department"
-            htmlFor="department"
-            error={fieldErrors.departmentId}
-            hint={
-              role === "staff"
-                ? "Required for staff accounts."
-                : "Admins are not scoped to a department."
-            }
-          >
-            <Select value={departmentId} onValueChange={setDepartmentId}>
-              <SelectTrigger id="department">
-                <SelectValue placeholder="Select…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={ALL}>None</SelectItem>
-                {departments.map((d) => (
-                  <SelectItem key={d.id} value={d.id}>
-                    {d.name}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </Field>
+            <Field
+              label="Department"
+              htmlFor="department"
+              icon={Building2}
+              error={fieldErrors.departmentId}
+            >
+              <Select value={departmentId} onValueChange={setDepartmentId}>
+                <SelectTrigger id="department" className="h-10 pl-9">
+                  <SelectValue placeholder="Select…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={ALL}>None</SelectItem>
+                  {departments.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Field>
+          </div>
+          {/* One hint under the pair, since the rule spans both fields. */}
+          <p className="-mt-2 text-xs text-slate-500 dark:text-slate-400">
+            {role === "staff"
+              ? "Staff must be assigned to a department."
+              : "Admins and super admins are not scoped to a department."}
+          </p>
 
           {isEdit && (
-            <Field label="Status" htmlFor="status">
+            <Field
+              label="Status"
+              htmlFor="status"
+              icon={roleTone === TONE.slate ? UserIcon : ShieldCheck}
+            >
               <Select
                 value={user!.status}
                 onValueChange={(v) =>
@@ -685,7 +755,7 @@ function UserFormDialog({
                     .catch((err) => toast.error(err instanceof Error ? err.message : "Failed"))
                 }
               >
-                <SelectTrigger id="status">
+                <SelectTrigger id="status" className="h-10 pl-9">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -699,23 +769,35 @@ function UserFormDialog({
           {formError && (
             <p
               role="alert"
-              className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
+              className="flex items-start gap-2 rounded-xl border border-red-200 bg-red-50 px-3 py-2.5 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
             >
+              <AlertCircle className="mt-px h-3.5 w-3.5 shrink-0" />
               {formError}
             </p>
           )}
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
+          <DialogFooter className="gap-2 border-t border-slate-100 pt-4 dark:border-white/[0.06]">
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10"
+              onClick={() => onOpenChange(false)}
+            >
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={mutation.isPending}
               style={{ background: BRAND }}
-              className="text-white"
+              className="h-10 gap-2 text-white"
             >
-              {mutation.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              {mutation.isPending ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : isEdit ? (
+                <UserPen className="h-4 w-4" />
+              ) : (
+                <UserPlus className="h-4 w-4" />
+              )}
               {isEdit ? "Save changes" : "Create user"}
             </Button>
           </DialogFooter>
@@ -725,23 +807,36 @@ function UserFormDialog({
   );
 }
 
+/** Label + icon-prefixed control. `relative` so the icon and any toggle sit inside. */
 function Field({
   label,
   htmlFor,
+  icon: Icon,
   error,
   hint,
   children,
 }: {
   label: string;
   htmlFor: string;
+  icon?: React.ComponentType<{ className?: string }>;
   error?: string;
   hint?: string;
   children: React.ReactNode;
 }) {
   return (
     <div className="space-y-1.5">
-      <Label htmlFor={htmlFor}>{label}</Label>
-      {children}
+      <Label
+        htmlFor={htmlFor}
+        className="text-[13px] font-medium text-slate-700 dark:text-slate-300"
+      >
+        {label}
+      </Label>
+      <div className="relative">
+        {Icon && (
+          <Icon className="pointer-events-none absolute left-2.5 top-1/2 z-10 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        )}
+        {children}
+      </div>
       {error ? (
         <p className="text-xs text-red-600 dark:text-red-400" role="alert">
           {error}

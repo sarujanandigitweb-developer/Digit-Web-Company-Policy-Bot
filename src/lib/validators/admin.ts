@@ -67,6 +67,8 @@ export const createDepartmentSchema = z.object({
   name: z.string().trim().min(1).max(80),
   description: z.string().trim().max(500).optional(),
   status: departmentStatusSchema.default("active"),
+  /** Shared departments' knowledge is searchable from every department. */
+  isShared: z.boolean().default(false),
 });
 export type CreateDepartmentInput = z.infer<typeof createDepartmentSchema>;
 
@@ -77,6 +79,7 @@ export const updateDepartmentSchema = z
     name: z.string().trim().min(1).max(80).optional(),
     description: z.string().trim().max(500).nullable().optional(),
     status: departmentStatusSchema.optional(),
+    isShared: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "No fields to update" });
 export type UpdateDepartmentInput = z.infer<typeof updateDepartmentSchema>;
@@ -105,6 +108,15 @@ export const gapStatusSchema = z.enum(["pending", "reviewed", "resolved", "ignor
 export const listGapsQuerySchema = listQuerySchema.extend({
   departmentId: uuid.optional(),
   status: gapStatusSchema.optional(),
+  // Inclusive date bounds on last_asked_at (YYYY-MM-DD), matching conversations.
+  from: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
+  to: z
+    .string()
+    .regex(/^\d{4}-\d{2}-\d{2}$/)
+    .optional(),
   sortBy: z
     .enum(["frequency", "last_asked", "confidence", "department", "status"])
     .default("frequency"),
@@ -113,8 +125,17 @@ export const listGapsQuerySchema = listQuerySchema.extend({
 
 export const updateGapSchema = z
   .object({
+    // The question text and department are editable so an admin can correct a
+    // mis-captured gap; the rest drive the review workflow.
+    question: z.string().trim().min(1).max(2000).optional(),
+    departmentId: uuid.nullable().optional(),
     status: gapStatusSchema.optional(),
     resolutionNote: z.string().trim().max(2000).nullable().optional(),
     resolvedDocumentId: uuid.nullable().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, { message: "No fields to update" });
+
+/** Shared body for bulk-delete endpoints: a non-empty list of ids, capped. */
+export const bulkDeleteSchema = z.object({
+  ids: z.array(uuid).min(1, "Select at least one record").max(500),
+});

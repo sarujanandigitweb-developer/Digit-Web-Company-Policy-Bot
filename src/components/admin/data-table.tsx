@@ -263,7 +263,7 @@ export function DataTable<T>({
                 {selectable && (
                   <th
                     scope="col"
-                    className="w-10 border-b border-slate-200 px-4 py-2.5 dark:border-white/[0.08]"
+                    className="w-10 border-b border-slate-200 px-3 py-2.5 dark:border-white/[0.08]"
                   >
                     <Checkbox
                       checked={allOnPageSelected}
@@ -276,7 +276,7 @@ export function DataTable<T>({
                   <th
                     key={col.key}
                     scope="col"
-                    className={`border-b border-slate-200 px-4 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-white/[0.08] dark:text-slate-400 ${col.className ?? ""} ${col.hideOnMobile ? "hidden sm:table-cell" : ""}`}
+                    className={`border-b border-slate-200 px-3 py-2.5 text-left text-[11px] font-semibold uppercase tracking-wide text-slate-500 dark:border-white/[0.08] dark:text-slate-400 ${col.className ?? ""} ${col.hideOnMobile ? "hidden sm:table-cell" : ""}`}
                     aria-sort={
                       sort?.key === col.key
                         ? sort.direction === "asc"
@@ -323,7 +323,7 @@ export function DataTable<T>({
                   } ${onRowClick ? "cursor-pointer" : ""}`}
                 >
                   {selectable && (
-                    <td className="w-10 px-4" onClick={(e) => e.stopPropagation()}>
+                    <td className="w-10 px-3" onClick={(e) => e.stopPropagation()}>
                       <Checkbox
                         checked={selected?.has(rowKey(row)) ?? false}
                         onCheckedChange={() => toggleRow(rowKey(row))}
@@ -334,7 +334,7 @@ export function DataTable<T>({
                   {visible.map((col) => (
                     <td
                       key={col.key}
-                      className={`px-4 ${cellPad} align-middle ${col.className ?? ""} ${col.hideOnMobile ? "hidden sm:table-cell" : ""}`}
+                      className={`px-3 ${cellPad} align-middle ${col.className ?? ""} ${col.hideOnMobile ? "hidden sm:table-cell" : ""}`}
                     >
                       {col.render(row)}
                     </td>

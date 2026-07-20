@@ -1,5 +1,7 @@
-import { sql } from "@/lib/db/client.server";
+import { sql, withTransaction } from "@/lib/db/client.server";
 import { NotFound } from "@/lib/http/errors";
+import { write as writeAudit } from "@/lib/audit/log.server";
+import type { SessionUser } from "@/lib/auth/session.server";
 
 /**
  * Read-only views over what the chatbot actually did.
@@ -40,6 +42,42 @@ const SORT_SQL: Record<string, string> = {
   confidence: "avg_confidence",
   department: "dep.name",
 };
+
+/**
+ * Deletes conversations and everything belonging to them.
+ *
+ * Deleting the chat_session cascades to chat_messages, and from there to
+ * message_citations and feedback (all ON DELETE CASCADE). References from
+ * knowledge_gaps and ai_provider_logs are ON DELETE SET NULL, so gap history and
+ * provider stats survive with their session/message links cleared — integrity is
+ * maintained without losing the audit of what was asked.
+ *
+ * Returns the number actually deleted (ids that no longer exist are ignored).
+ */
+export async function deleteMany(
+  ids: string[],
+  actor: SessionUser,
+  request: Request,
+): Promise<number> {
+  return withTransaction(async (tx) => {
+    const { rows } = await tx.query(
+      `DELETE FROM chat_sessions WHERE id = ANY($1::uuid[]) RETURNING id`,
+      [ids],
+    );
+    const deletedIds = rows.map((r) => r.id as string);
+    if (deletedIds.length > 0) {
+      await writeAudit(tx, {
+        actor,
+        action: "conversation.deleted",
+        table: "chat_sessions",
+        recordId: deletedIds.length === 1 ? deletedIds[0] : `${deletedIds.length} conversations`,
+        oldValue: { count: deletedIds.length, ids: deletedIds },
+        request,
+      });
+    }
+    return deletedIds.length;
+  });
+}
 
 export async function list(
   query: ListConversationsQuery,

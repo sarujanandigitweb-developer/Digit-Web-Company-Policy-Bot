@@ -14,6 +14,8 @@ export interface Department {
   name: string;
   description: string | null;
   status: "active" | "inactive";
+  /** When true, this department's knowledge is searchable from every department. */
+  is_shared: boolean;
   document_count: number;
   created_at: string;
   updated_at: string;
@@ -65,9 +67,9 @@ export async function create(
     if (existing.rowCount) throw Conflict(`A department with slug "${input.slug}" already exists`);
 
     const { rows } = await tx.query(
-      `INSERT INTO departments (slug, name, description, status)
-       VALUES ($1, $2, $3, $4) RETURNING *`,
-      [input.slug, input.name, input.description ?? null, input.status],
+      `INSERT INTO departments (slug, name, description, status, is_shared)
+       VALUES ($1, $2, $3, $4, $5) RETURNING *`,
+      [input.slug, input.name, input.description ?? null, input.status, input.isShared ?? false],
     );
     const created = rows[0] as Department;
 
@@ -102,7 +104,8 @@ export async function update(
       `UPDATE departments SET
          name = COALESCE($2, name),
          description = CASE WHEN $3::bool THEN $4 ELSE description END,
-         status = COALESCE($5, status)
+         status = COALESCE($5, status),
+         is_shared = COALESCE($6, is_shared)
        WHERE id = $1::uuid
        RETURNING *`,
       [
@@ -111,6 +114,7 @@ export async function update(
         Object.prototype.hasOwnProperty.call(input, "description"),
         input.description ?? null,
         input.status ?? null,
+        input.isShared ?? null,
       ],
     );
     const after = rows[0] as Department;

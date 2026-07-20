@@ -158,7 +158,9 @@ export function Kpi({
     </>
   );
 
-  const classes = `group flex w-full flex-col p-4 text-left ${interactive ? CARD_INTERACTIVE : CARD} ${
+  // Vertical padding trimmed (py-4 → py-3) so KPI rows take less height while
+  // keeping the same horizontal padding, typography and layout.
+  const classes = `group flex w-full flex-col px-4 py-3 text-left ${interactive ? CARD_INTERACTIVE : CARD} ${
     active ? "ring-2 ring-[#2b6cf3]" : ""
   } ${interactive ? FOCUS_RING : ""}`;
 

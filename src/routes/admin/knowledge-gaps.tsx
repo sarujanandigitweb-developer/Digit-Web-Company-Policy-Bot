@@ -27,7 +27,9 @@ import { useDebounced } from "@/hooks/use-debounced";
 import { DataTable, type Column, type SortState } from "@/components/admin/data-table";
 import { EmptyState, NoResults } from "@/components/admin/states";
 import { ConfidencePill } from "@/components/admin/confidence-pill";
-import { BRAND, CARD, TONE, departmentTone } from "@/components/admin/theme";
+import { DateRangeFilter, type DateRange } from "@/components/admin/date-range-filter";
+import { BulkDeleteButton } from "@/components/admin/bulk-delete";
+import { BRAND, CARD } from "@/components/admin/theme";
 import { Kpi, PageHeader } from "@/components/admin/primitives";
 import {
   DropdownMenu,
@@ -92,8 +94,11 @@ function KnowledgeGapsPage() {
   const [departmentId, setDepartmentId] = useState(ALL);
   const [status, setStatus] = useState(ALL);
   const [sort, setSort] = useState<SortState>({ key: "frequency", direction: "desc" });
+  const [dateRange, setDateRange] = useState<DateRange>({ from: "", to: "" });
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const [reviewing, setReviewing] = useState<Gap | null>(null);
   const debouncedSearch = useDebounced(search);
+  const { from, to } = dateRange;
 
   const departments = useQuery({
     queryKey: ["departments"],
@@ -101,7 +106,7 @@ function KnowledgeGapsPage() {
   });
 
   const gaps = useQuery({
-    queryKey: ["gaps", page, debouncedSearch, departmentId, status, sort],
+    queryKey: ["gaps", page, debouncedSearch, departmentId, status, from, to, sort],
     queryFn: () =>
       api.get<GapsResponse>(
         `/api/admin/gaps${qs({
@@ -110,11 +115,24 @@ function KnowledgeGapsPage() {
           search: debouncedSearch || undefined,
           departmentId: departmentId === ALL ? undefined : departmentId,
           status: status === ALL ? undefined : status,
+          from: from || undefined,
+          to: to || undefined,
           sortBy: sort.key,
           sortDir: sort.direction,
         })}`,
       ),
     placeholderData: (prev) => prev,
+  });
+
+  const bulkDelete = useMutation({
+    mutationFn: (ids: string[]) =>
+      api.post<{ deleted: number }>("/api/admin/gaps/bulk-delete", { ids }),
+    onSuccess: (res) => {
+      toast.success(`Deleted ${res.deleted} gap${res.deleted === 1 ? "" : "s"}`);
+      setSelected(new Set());
+      void qc.invalidateQueries({ queryKey: ["gaps"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete"),
   });
 
   const quickStatus = useMutation({
@@ -239,8 +257,16 @@ function KnowledgeGapsPage() {
     [quickStatus],
   );
 
-  const hasFilters = !!debouncedSearch || departmentId !== ALL || status !== ALL;
+  const hasFilters = !!debouncedSearch || departmentId !== ALL || status !== ALL || !!from || !!to;
   const stats = gaps.data?.stats;
+
+  function clearFilters() {
+    setSearch("");
+    setDepartmentId(ALL);
+    setStatus(ALL);
+    setDateRange({ from: "", to: "" });
+    setPage(1);
+  }
 
   return (
     <div className="mx-auto w-full max-w-[1400px] space-y-6">
@@ -353,18 +379,15 @@ function KnowledgeGapsPage() {
             ))}
           </SelectContent>
         </Select>
+        <DateRangeFilter
+          value={dateRange}
+          onChange={(r) => {
+            setDateRange(r);
+            setPage(1);
+          }}
+        />
         {hasFilters && (
-          <Button
-            variant="ghost"
-            size="sm"
-            className="h-9 text-slate-500"
-            onClick={() => {
-              setSearch("");
-              setDepartmentId(ALL);
-              setStatus(ALL);
-              setPage(1);
-            }}
-          >
+          <Button variant="ghost" size="sm" className="h-9 text-slate-500" onClick={clearFilters}>
             Reset
           </Button>
         )}
@@ -387,17 +410,20 @@ function KnowledgeGapsPage() {
           setSort(s);
           setPage(1);
         }}
+        selectable
+        selected={selected}
+        onSelectionChange={setSelected}
+        bulkActions={(sel) => (
+          <BulkDeleteButton
+            count={sel.size}
+            noun="knowledge gap"
+            isPending={bulkDelete.isPending}
+            onConfirm={() => bulkDelete.mutate([...sel])}
+          />
+        )}
         empty={
           hasFilters ? (
-            <NoResults
-              query={debouncedSearch || "these filters"}
-              onClear={() => {
-                setSearch("");
-                setDepartmentId(ALL);
-                setStatus(ALL);
-                setPage(1);
-              }}
-            />
+            <NoResults query={debouncedSearch || "these filters"} onClear={clearFilters} />
           ) : (
             <EmptyState
               icon={Sparkles}
@@ -410,6 +436,7 @@ function KnowledgeGapsPage() {
 
       <ReviewDialog
         gap={reviewing}
+        departments={departments.data?.items ?? []}
         onOpenChange={(o) => !o && setReviewing(null)}
         onSaved={() => void qc.invalidateQueries({ queryKey: ["gaps"] })}
       />
@@ -419,13 +446,17 @@ function KnowledgeGapsPage() {
 
 function ReviewDialog({
   gap,
+  departments,
   onOpenChange,
   onSaved,
 }: {
   gap: Gap | null;
+  departments: Department[];
   onOpenChange: (o: boolean) => void;
   onSaved: () => void;
 }) {
+  const [question, setQuestion] = useState("");
+  const [gapDepartment, setGapDepartment] = useState<string>(ALL);
   const [status, setStatus] = useState<string>("reviewed");
   const [note, setNote] = useState("");
   const [documentId, setDocumentId] = useState<string>(ALL);
@@ -433,6 +464,8 @@ function ReviewDialog({
 
   useEffect(() => {
     if (!gap) return;
+    setQuestion(gap.question);
+    setGapDepartment(gap.department_id ?? ALL);
     setStatus(gap.status === "pending" ? "reviewed" : gap.status);
     setNote(gap.resolution_note ?? "");
     setDocumentId(gap.resolved_document_id ?? ALL);
@@ -442,10 +475,10 @@ function ReviewDialog({
   // Only active documents can close a gap — linking an archived one would point
   // the answer at something retrieval will never return.
   const documents = useQuery({
-    queryKey: ["documents-for-gap", gap?.department_id],
+    queryKey: ["documents-for-gap", gapDepartment],
     queryFn: () =>
       api.get<Paged<KnowledgeDocument>>(
-        `/api/admin/knowledge${qs({ pageSize: 100, status: "active", departmentId: gap?.department_id ?? undefined })}`,
+        `/api/admin/knowledge${qs({ pageSize: 100, status: "active", departmentId: gapDepartment === ALL ? undefined : gapDepartment })}`,
       ),
     enabled: !!gap,
   });
@@ -453,6 +486,8 @@ function ReviewDialog({
   const mutation = useMutation({
     mutationFn: () =>
       api.patch<Gap>(`/api/admin/gaps/${gap!.id}`, {
+        question: question.trim(),
+        departmentId: gapDepartment === ALL ? null : gapDepartment,
         status,
         resolutionNote: note || null,
         resolvedDocumentId: documentId === ALL ? null : documentId,
@@ -486,11 +521,32 @@ function ReviewDialog({
             mutation.mutate();
           }}
         >
-          <div>
-            <Label className="text-xs text-slate-500">Question</Label>
-            <p className="mt-1 rounded-xl bg-slate-50 p-3 text-sm text-slate-800 dark:bg-white/5 dark:text-slate-100">
-              {gap.question}
-            </p>
+          <div className="space-y-1.5">
+            <Label htmlFor="gap-question">Question</Label>
+            <Textarea
+              id="gap-question"
+              rows={2}
+              maxLength={2000}
+              value={question}
+              onChange={(e) => setQuestion(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="gap-department">Department</Label>
+            <Select value={gapDepartment} onValueChange={setGapDepartment}>
+              <SelectTrigger id="gap-department">
+                <SelectValue placeholder="All departments" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={ALL}>All departments</SelectItem>
+                {departments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
           </div>
 
           {gap.ai_response && (
@@ -562,7 +618,7 @@ function ReviewDialog({
             </Button>
             <Button
               type="submit"
-              disabled={mutation.isPending}
+              disabled={mutation.isPending || !question.trim()}
               style={{ background: BRAND }}
               className="text-white"
             >

@@ -310,6 +310,105 @@ export async function setStatus(
   return getById(id);
 }
 
+export interface UpdateDocumentInput {
+  title?: string;
+  description?: string | null;
+  departmentId?: string;
+}
+
+/**
+ * Edits a document's metadata — title, description, department — without
+ * touching the file or re-processing. Cheaper and safer than re-uploading when a
+ * document was filed under the wrong department or mistitled.
+ *
+ * Changing the department also rewrites every chunk's denormalized
+ * department_id: the sync trigger only fires when a chunk's document_id changes,
+ * so a document-level department change would otherwise leave the chunks — and
+ * therefore retrieval, which filters on chunk.department_id — pointing at the old
+ * department. Both updates run in one transaction so they cannot diverge.
+ */
+export async function updateMetadata(
+  id: string,
+  input: UpdateDocumentInput,
+  actor: SessionUser,
+  request: Request,
+): Promise<KnowledgeDocument> {
+  if (input.departmentId) {
+    const dept = (await sql`
+      SELECT status FROM departments WHERE id = ${input.departmentId}::uuid
+    `) as Array<{ status: string }>;
+    if (!dept[0]) throw BadRequest("Department not found");
+    if (dept[0].status !== "active") throw BadRequest("Department is not active");
+  }
+
+  await withTransaction(async (tx) => {
+    const before = await tx.query(
+      `SELECT * FROM knowledge_documents WHERE id = $1::uuid FOR UPDATE`,
+      [id],
+    );
+    if (!before.rowCount) throw NotFound("Document not found");
+    const current = before.rows[0] as { department_id: string; checksum: string; status: string };
+
+    // The (department_id, checksum) uniqueness over non-archived rows means moving
+    // a document into a department that already holds the same file would collide.
+    // Surface that as a clear 409 rather than a raw constraint error.
+    if (input.departmentId && input.departmentId !== current.department_id) {
+      const clash = await tx.query(
+        `SELECT 1 FROM knowledge_documents
+          WHERE department_id = $1::uuid AND checksum = $2 AND status <> 'archived' AND id <> $3::uuid`,
+        [input.departmentId, current.checksum, id],
+      );
+      if (clash.rowCount) {
+        throw Conflict("The target department already has this exact file.");
+      }
+    }
+
+    const { rows } = await tx.query(
+      `UPDATE knowledge_documents SET
+         title = COALESCE($2, title),
+         description = CASE WHEN $3::bool THEN $4 ELSE description END,
+         department_id = COALESCE($5::uuid, department_id)
+       WHERE id = $1::uuid
+       RETURNING *`,
+      [
+        id,
+        input.title ?? null,
+        Object.prototype.hasOwnProperty.call(input, "description"),
+        input.description ?? null,
+        input.departmentId ?? null,
+      ],
+    );
+    const after = rows[0] as { department_id: string };
+
+    // Keep chunks in step with the document's department.
+    if (after.department_id !== current.department_id) {
+      await tx.query(
+        `UPDATE knowledge_chunks SET department_id = $2::uuid WHERE document_id = $1::uuid`,
+        [id, after.department_id],
+      );
+    }
+
+    await writeAudit(tx, {
+      actor,
+      action: "knowledge.updated",
+      table: "knowledge_documents",
+      recordId: id,
+      oldValue: {
+        title: before.rows[0].title,
+        description: before.rows[0].description,
+        department_id: current.department_id,
+      },
+      newValue: {
+        title: rows[0].title,
+        description: rows[0].description,
+        department_id: after.department_id,
+      },
+      request,
+    });
+  });
+  return getById(id);
+}
+
 export async function remove(id: string, actor: SessionUser, request: Request): Promise<void> {
   await withTransaction(async (tx) => {
     const before = await tx.query(

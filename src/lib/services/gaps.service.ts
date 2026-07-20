@@ -39,6 +39,9 @@ export interface ListGapsQuery {
   search?: string;
   departmentId?: string;
   status?: GapStatus;
+  /** Inclusive date bounds (YYYY-MM-DD) on last_asked_at. */
+  from?: string;
+  to?: string;
   sortBy?: string;
   sortDir?: "asc" | "desc";
 }
@@ -76,6 +79,10 @@ export async function list(
               OR g.department_id = ${query.departmentId ?? null}::uuid)
        AND (${query.status ?? null}::gap_status IS NULL
               OR g.status = ${query.status ?? null}::gap_status)
+       AND (${query.from ?? null}::date IS NULL OR g.last_asked_at >= ${query.from ?? null}::date)
+       -- 'to' is inclusive of the whole day, so compare against the next midnight.
+       AND (${query.to ?? null}::date IS NULL
+              OR g.last_asked_at < (${query.to ?? null}::date + interval '1 day'))
      ORDER BY ${sql.unsafe(orderColumn)} ${sql.unsafe(orderDir)} NULLS LAST, g.id
      LIMIT ${query.pageSize} OFFSET ${offset}
   `) as Array<KnowledgeGap & { total_count: number }>;
@@ -104,9 +111,37 @@ export async function getById(id: string): Promise<KnowledgeGap> {
 }
 
 export interface UpdateGapInput {
+  question?: string;
+  departmentId?: string | null;
   status?: GapStatus;
   resolutionNote?: string | null;
   resolvedDocumentId?: string | null;
+}
+
+/** Bulk-deletes gaps. Returns how many rows were removed. */
+export async function deleteMany(
+  ids: string[],
+  actor: SessionUser,
+  request: Request,
+): Promise<number> {
+  return withTransaction(async (tx) => {
+    const { rows } = await tx.query(
+      `DELETE FROM knowledge_gaps WHERE id = ANY($1::uuid[]) RETURNING id`,
+      [ids],
+    );
+    const deletedIds = rows.map((r) => r.id as string);
+    if (deletedIds.length > 0) {
+      await writeAudit(tx, {
+        actor,
+        action: "gap.deleted",
+        table: "knowledge_gaps",
+        recordId: deletedIds.length === 1 ? deletedIds[0] : `${deletedIds.length} gaps`,
+        oldValue: { count: deletedIds.length, ids: deletedIds },
+        request,
+      });
+    }
+    return deletedIds.length;
+  });
 }
 
 /**
@@ -140,6 +175,8 @@ export async function update(
 
     const { rows } = await tx.query(
       `UPDATE knowledge_gaps SET
+         question = COALESCE($9, question),
+         department_id = CASE WHEN $10::bool THEN $11::uuid ELSE department_id END,
          status = $2::gap_status,
          resolution_note = CASE WHEN $3::bool THEN $4 ELSE resolution_note END,
          resolved_document_id = CASE WHEN $5::bool THEN $6::uuid ELSE resolved_document_id END,
@@ -156,6 +193,9 @@ export async function update(
         input.resolvedDocumentId ?? null,
         isTriaged,
         actor.userId,
+        input.question ?? null,
+        Object.prototype.hasOwnProperty.call(input, "departmentId"),
+        input.departmentId ?? null,
       ],
     );
 

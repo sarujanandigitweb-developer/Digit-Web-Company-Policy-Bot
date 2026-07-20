@@ -24,13 +24,17 @@ export type AuditAction =
   | "department.updated"
   | "department.deleted"
   | "knowledge.uploaded"
+  | "knowledge.updated"
   | "knowledge.replaced"
   | "knowledge.activated"
   | "knowledge.deactivated"
   | "knowledge.archived"
   | "knowledge.deleted"
   | "gap.reviewed"
-  | "gap.resolved";
+  | "gap.resolved"
+  | "gap.updated"
+  | "gap.deleted"
+  | "conversation.deleted";
 
 export interface AuditEntry {
   actor: Pick<SessionUser, "userId">;

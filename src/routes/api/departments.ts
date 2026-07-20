@@ -6,9 +6,15 @@ import { sql } from "@/lib/db/client.server";
 /**
  * /api/departments — the chat's department picker.
  *
- * Public, because the chat has no login. Exposes only what a picker needs
- * (slug and name) for departments that are active and actually have something
- * to answer from — offering a department with no content just produces a shrug.
+ * Public, because the chat has no login. Exposes only slug and name.
+ *
+ * Two exclusions matter:
+ *  - is_shared departments are hidden: the Shared bucket is a system department
+ *    that users must never select directly; its content reaches them anyway,
+ *    folded into whichever department they pick.
+ *  - the old "must have its own active documents" filter is gone: shared
+ *    knowledge now backs every department, so even a department with no
+ *    documents of its own can answer, and so should be selectable.
  *
  * Distinct from /api/admin/departments, which is authenticated and returns
  * management fields.
@@ -21,10 +27,7 @@ export const Route = createFileRoute("/api/departments")({
           SELECT d.slug, d.name
             FROM departments d
            WHERE d.status = 'active'
-             AND EXISTS (
-               SELECT 1 FROM knowledge_documents kd
-                WHERE kd.department_id = d.id AND kd.status = 'active'
-             )
+             AND d.is_shared = false
            ORDER BY d.name
         `;
         return ok({ items });

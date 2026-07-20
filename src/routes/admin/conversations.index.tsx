@@ -1,10 +1,10 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
+import { toast } from "sonner";
 import { Clock, Eye, Gauge, MessagesSquare, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
   Select,
   SelectContent,
@@ -18,9 +18,11 @@ import { DataTable, type Column, type SortState } from "@/components/admin/data-
 import { EmptyState, NoResults } from "@/components/admin/states";
 import { ConfidencePill } from "@/components/admin/confidence-pill";
 import { Kpi, PageHeader } from "@/components/admin/primitives";
-import { CARD, TONE, departmentTone } from "@/components/admin/theme";
+import { DateRangeFilter, type DateRange } from "@/components/admin/date-range-filter";
+import { BulkDeleteButton } from "@/components/admin/bulk-delete";
+import { CARD, FOCUS_RING, TONE, departmentTone } from "@/components/admin/theme";
 
-export const Route = createFileRoute("/admin/conversations")({
+export const Route = createFileRoute("/admin/conversations/")({
   component: ConversationsPage,
 });
 
@@ -39,14 +41,15 @@ export interface ConversationRow {
 }
 
 function ConversationsPage() {
-  const navigate = useNavigate();
+  const qc = useQueryClient();
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState(ALL);
-  const [from, setFrom] = useState("");
-  const [to, setTo] = useState("");
+  const [dateRange, setDateRange] = useState<DateRange>({ from: "", to: "" });
   const [sort, setSort] = useState<SortState>({ key: "activity", direction: "desc" });
+  const [selected, setSelected] = useState<Set<string>>(new Set());
   const debouncedSearch = useDebounced(search);
+  const { from, to } = dateRange;
 
   const departments = useQuery({
     queryKey: ["departments"],
@@ -69,6 +72,17 @@ function ConversationsPage() {
         })}`,
       ),
     placeholderData: (prev) => prev,
+  });
+
+  const bulkDelete = useMutation({
+    mutationFn: (ids: string[]) =>
+      api.post<{ deleted: number }>("/api/admin/conversations/bulk-delete", { ids }),
+    onSuccess: (res) => {
+      toast.success(`Deleted ${res.deleted} conversation${res.deleted === 1 ? "" : "s"}`);
+      setSelected(new Set());
+      void qc.invalidateQueries({ queryKey: ["conversations"] });
+    },
+    onError: (e) => toast.error(e instanceof Error ? e.message : "Could not delete"),
   });
 
   const columns = useMemo<Column<ConversationRow>[]>(
@@ -158,12 +172,19 @@ function ConversationsPage() {
         key: "actions",
         header: "",
         className: "text-right",
+        // A plain Link styled as an icon button. The previous <Button asChild>
+        // wrapped the Link in a Radix Slot, whose prop-merge stopped the Link's
+        // navigation from firing — this is the same reliable pattern the Session
+        // title link uses.
         render: (c) => (
-          <Button variant="ghost" size="icon" asChild aria-label="View transcript">
-            <Link to="/admin/conversations/$id" params={{ id: c.id }}>
-              <Eye className="h-4 w-4" />
-            </Link>
-          </Button>
+          <Link
+            to="/admin/conversations/$id"
+            params={{ id: c.id }}
+            aria-label="View transcript"
+            className={`inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-400 transition hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-white/5 dark:hover:text-slate-200 ${FOCUS_RING}`}
+          >
+            <Eye className="h-4 w-4" />
+          </Link>
         ),
       },
     ],
@@ -187,8 +208,7 @@ function ConversationsPage() {
   function clearFilters() {
     setSearch("");
     setDepartmentId(ALL);
-    setFrom("");
-    setTo("");
+    setDateRange({ from: "", to: "" });
     setPage(1);
   }
 
@@ -264,38 +284,13 @@ function ConversationsPage() {
             ))}
           </SelectContent>
         </Select>
-        <div className="space-y-1">
-          <Label htmlFor="from" className="text-[11px] text-slate-400">
-            From
-          </Label>
-          <Input
-            id="from"
-            type="date"
-            value={from}
-            max={to || undefined}
-            onChange={(e) => {
-              setFrom(e.target.value);
-              setPage(1);
-            }}
-            className="h-9 w-[150px]"
-          />
-        </div>
-        <div className="space-y-1">
-          <Label htmlFor="to" className="text-[11px] text-slate-400">
-            To
-          </Label>
-          <Input
-            id="to"
-            type="date"
-            value={to}
-            min={from || undefined}
-            onChange={(e) => {
-              setTo(e.target.value);
-              setPage(1);
-            }}
-            className="h-9 w-[150px]"
-          />
-        </div>
+        <DateRangeFilter
+          value={dateRange}
+          onChange={(r) => {
+            setDateRange(r);
+            setPage(1);
+          }}
+        />
         {hasFilters && (
           <Button variant="ghost" size="sm" className="h-9 text-slate-500" onClick={clearFilters}>
             Reset
@@ -321,7 +316,17 @@ function ConversationsPage() {
           setPage(1);
         }}
         exportName="conversations"
-        onRowClick={(c) => void navigate({ to: "/admin/conversations/$id", params: { id: c.id } })}
+        selectable
+        selected={selected}
+        onSelectionChange={setSelected}
+        bulkActions={(sel) => (
+          <BulkDeleteButton
+            count={sel.size}
+            noun="conversation"
+            isPending={bulkDelete.isPending}
+            onConfirm={() => bulkDelete.mutate([...sel])}
+          />
+        )}
         empty={
           hasFilters ? (
             <NoResults query={debouncedSearch || "these filters"} onClear={clearFilters} />

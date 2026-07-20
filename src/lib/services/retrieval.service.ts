@@ -31,10 +31,17 @@ export interface RetrievedChunk {
 
 export interface RetrieveOptions {
   query: string;
-  /** Restrict to one department. Ignored when global is true. */
+  /**
+   * Restrict to one department. When set, the search covers that department's
+   * chunks PLUS any department flagged is_shared — never any other department.
+   * Ignored when global is true.
+   */
   departmentId?: string | null;
-  /** Search every department — management, or an explicit global request. */
+  /** Search every department — management, or an explicit "All departments". */
   global?: boolean;
+  /** Search ONLY shared (company-wide) knowledge — for general questions asked
+   *  before any department is chosen. Never touches a specific department. */
+  sharedOnly?: boolean;
   limit?: number;
   /** Blend weight for the vector score; the remainder goes to keyword score. */
   vectorWeight?: number;
@@ -48,7 +55,14 @@ const CANDIDATE_POOL = 40;
 export async function retrieve(options: RetrieveOptions): Promise<RetrievedChunk[]> {
   const limit = options.limit ?? DEFAULT_LIMIT;
   const vectorWeight = options.vectorWeight ?? DEFAULT_VECTOR_WEIGHT;
-  const departmentFilter = options.global ? null : (options.departmentId ?? null);
+
+  // Three mutually exclusive scopes, resolved to two booleans and a department:
+  //  - global      → no filter (management / explicit "All")
+  //  - shared-only → only is_shared departments (general question, no dept yet)
+  //  - department  → the selected department OR any shared department
+  const isGlobal = !!options.global;
+  const isSharedOnly = !!options.sharedOnly && !isGlobal;
+  const departmentFilter = isGlobal || isSharedOnly ? null : (options.departmentId ?? null);
 
   const embedding = toVectorLiteral(await embedQuery(options.query));
 
@@ -61,9 +75,17 @@ export async function retrieve(options: RetrieveOptions): Promise<RetrievedChunk
              similarity(c.content, ${options.query})     AS keyword_score
         FROM knowledge_chunks c
         JOIN knowledge_documents d ON d.id = c.document_id
+        JOIN departments cd ON cd.id = c.department_id
        WHERE d.status = 'active'
          AND c.embedding IS NOT NULL
-         AND (${departmentFilter}::uuid IS NULL OR c.department_id = ${departmentFilter}::uuid)
+         -- cd.is_shared is the ONLY cross-department path; no branch here ever
+         -- reaches a non-selected, non-shared department.
+         AND (
+           ${isGlobal}::bool
+           OR (${isSharedOnly}::bool AND cd.is_shared)
+           OR (${departmentFilter}::uuid IS NOT NULL
+               AND (c.department_id = ${departmentFilter}::uuid OR cd.is_shared))
+         )
        ORDER BY c.embedding <=> ${embedding}::vector
        LIMIT ${CANDIDATE_POOL}
     )
@@ -81,17 +103,35 @@ export async function retrieve(options: RetrieveOptions): Promise<RetrievedChunk
 }
 
 /**
- * Retrieval scoped the way the chatbot needs it: a department's own knowledge
- * first, falling back to a global sweep when that department has nothing
- * relevant. Management roles skip straight to global.
+ * Retrieval scoped the way the chatbot needs it.
+ *
+ * When a department is selected, the search is strictly that department PLUS
+ * shared knowledge — never any other department, and with NO global fallback:
+ * a question neither the department nor shared can answer returns nothing, so
+ * one department's question can never surface another department's content.
+ *
+ * A global sweep runs only when the caller explicitly asks for it (the "All
+ * departments" option) or holds global access (management) — an explicit
+ * choice, not a silent fallback.
  */
 export async function retrieveForUser(options: {
   query: string;
   departmentId: string | null;
   globalAccess: boolean;
   explicitGlobal?: boolean;
+  /** General question, no department chosen yet: search shared knowledge only. */
+  sharedOnly?: boolean;
   limit?: number;
-}): Promise<{ chunks: RetrievedChunk[]; scope: "department" | "global" }> {
+}): Promise<{ chunks: RetrievedChunk[]; scope: "department" | "global" | "shared" }> {
+  // Shared-only wins: a general pre-department question searches company-wide
+  // knowledge and nothing else.
+  if (options.sharedOnly) {
+    return {
+      chunks: await retrieve({ query: options.query, sharedOnly: true, limit: options.limit }),
+      scope: "shared",
+    };
+  }
+
   const wantsGlobal = options.explicitGlobal || options.globalAccess || !options.departmentId;
 
   if (wantsGlobal) {
@@ -101,18 +141,12 @@ export async function retrieveForUser(options: {
     };
   }
 
-  const departmental = await retrieve({
+  // Selected department + shared only. Whatever this returns — including an empty
+  // result — is the answer. There is deliberately no global fallback here.
+  const chunks = await retrieve({
     query: options.query,
     departmentId: options.departmentId,
     limit: options.limit,
   });
-
-  // Department-first, not department-only: a staff member asking something their
-  // own department has no answer for should get the company answer rather than
-  // a shrug. The scope is returned so the caller can say where it came from.
-  if (departmental.length > 0) return { chunks: departmental, scope: "department" };
-  return {
-    chunks: await retrieve({ query: options.query, global: true, limit: options.limit }),
-    scope: "global",
-  };
+  return { chunks, scope: "department" };
 }
