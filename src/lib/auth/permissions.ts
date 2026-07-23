@@ -7,11 +7,11 @@
  * never re-described in two places.
  */
 
-export type Role = "super_admin" | "admin" | "staff";
+export type Role = "super_admin" | "admin" | "team_leader";
 
 export const PERMISSIONS = [
   "users.create_admin",
-  "users.create_staff",
+  "users.create_team_leader",
   "users.edit",
   "users.delete",
   "users.assign_role",
@@ -29,19 +29,21 @@ export const PERMISSIONS = [
 
 export type Permission = (typeof PERMISSIONS)[number];
 
-const STAFF: Permission[] = ["chat.use", "knowledge.view_own_department", "feedback.submit"];
-
-// Admins do everything staff do, plus manage staff, knowledge, gaps and analytics.
-const ADMIN: Permission[] = [
-  ...STAFF,
-  "users.create_staff",
-  "users.edit",
+// Team leaders run the knowledge base for the console: knowledge, gaps, analytics,
+// conversations and departments — every admin page except Users and Settings.
+const TEAM_LEADER: Permission[] = [
+  "chat.use",
+  "feedback.submit",
+  "knowledge.view_own_department",
   "knowledge.manage",
   "knowledge.update_department_docs",
   "analytics.view",
   "gaps.view",
   "gaps.review",
 ];
+
+// Admins do everything team leaders do, plus manage users.
+const ADMIN: Permission[] = [...TEAM_LEADER, "users.create_team_leader", "users.edit"];
 
 // Super admins add the destructive and structural powers: creating other admins,
 // deleting users, reassigning roles, and configuring AI providers.
@@ -55,7 +57,7 @@ const SUPER_ADMIN: Permission[] = [
 ];
 
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
-  staff: STAFF,
+  team_leader: TEAM_LEADER,
   admin: ADMIN,
   super_admin: SUPER_ADMIN,
 };
@@ -66,15 +68,18 @@ export function can(role: Role, permission: Permission): boolean {
 
 /**
  * Whether a role sees every department's knowledge, or only its own.
- * Management (admin and super admin) is deliberately not scoped to a department.
+ *
+ * Team leaders are scoped to their own department: on the console's Knowledge,
+ * Search and stats surfaces they only ever see, edit or delete documents in the
+ * department they lead. Admins and super admins see every department.
  */
 export function hasGlobalKnowledgeAccess(role: Role): boolean {
   return role === "admin" || role === "super_admin";
 }
 
-/** Roles a given role is allowed to assign. Staff and admins cannot mint admins. */
+/** Roles a given role is allowed to assign. Only super admins can mint admins. */
 export function assignableRoles(role: Role): Role[] {
-  if (role === "super_admin") return ["super_admin", "admin", "staff"];
-  if (role === "admin") return ["staff"];
+  if (role === "super_admin") return ["super_admin", "admin", "team_leader"];
+  if (role === "admin") return ["team_leader"];
   return [];
 }

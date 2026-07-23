@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireAdmin } from "@/lib/auth/session.server";
+import { requireAdminArea } from "@/lib/auth/session.server";
 import { api } from "@/lib/http/handler";
 import { ok } from "@/lib/http/errors";
 import { sql } from "@/lib/db/client.server";
@@ -18,7 +18,7 @@ export const Route = createFileRoute("/api/admin/analytics/knowledge")({
   server: {
     handlers: {
       GET: api(async ({ request }) => {
-        await requireAdmin(request);
+        await requireAdminArea(request);
         const raw = Number(new URL(request.url).searchParams.get("days") ?? 30);
         const days = Math.min(Math.max(Number.isFinite(raw) ? raw : 30, 7), 90);
 

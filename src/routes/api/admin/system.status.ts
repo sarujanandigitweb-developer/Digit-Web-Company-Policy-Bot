@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireAdmin } from "@/lib/auth/session.server";
+import { requireAdminArea } from "@/lib/auth/session.server";
 import { api } from "@/lib/http/handler";
 import { ok } from "@/lib/http/errors";
 import { sql } from "@/lib/db/client.server";
@@ -31,7 +31,7 @@ export const Route = createFileRoute("/api/admin/system/status")({
   server: {
     handlers: {
       GET: api(async ({ request }) => {
-        await requireAdmin(request);
+        await requireAdminArea(request);
 
         const [dbRes, dbMs, dbErr] = await timed(() => sql`SELECT 1 AS ok`);
         const database: Check = {

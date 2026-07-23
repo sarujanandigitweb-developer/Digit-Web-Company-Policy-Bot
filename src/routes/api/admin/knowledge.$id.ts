@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireAdmin, requireSuperAdmin } from "@/lib/auth/session.server";
+import { knowledgeScope, requireAdminArea } from "@/lib/auth/session.server";
 import { api, jsonBody, routeParam } from "@/lib/http/handler";
 import { ok } from "@/lib/http/errors";
 import { uuid } from "@/lib/validators/admin";
@@ -11,15 +11,16 @@ export const Route = createFileRoute("/api/admin/knowledge/$id")({
   server: {
     handlers: {
       GET: api(async (ctx) => {
-        await requireAdmin(ctx.request);
-        return ok(await knowledge.getById(uuid.parse(routeParam(ctx, "id"))));
+        const user = await requireAdminArea(ctx.request);
+        const id = uuid.parse(routeParam(ctx, "id"));
+        return ok(await knowledge.getById(id, knowledgeScope(user)));
       }),
 
       // One PATCH serves two shapes: a lifecycle change ({status}) from the
       // quick actions, or a metadata edit ({title, description, departmentId})
       // from the Edit dialog — routed by which fields the body carries.
       PATCH: api(async (ctx) => {
-        const actor = await requireAdmin(ctx.request);
+        const actor = await requireAdminArea(ctx.request);
         const id = uuid.parse(routeParam(ctx, "id"));
         const body = (await jsonBody(ctx.request)) as Record<string, unknown>;
 
@@ -31,10 +32,11 @@ export const Route = createFileRoute("/api/admin/knowledge/$id")({
         return ok(await knowledge.updateMetadata(id, input, actor, ctx.request));
       }),
 
-      // Deleting destroys the chunks and the citations pointing at them; archive
-      // is the reversible option, so deletion is super-admin only.
+      // Deleting destroys the chunks and the citations pointing at them. A team
+      // leader may delete only within their own department (enforced in the
+      // service); admins and super admins may delete any document.
       DELETE: api(async (ctx) => {
-        const actor = await requireSuperAdmin(ctx.request);
+        const actor = await requireAdminArea(ctx.request);
         await knowledge.remove(uuid.parse(routeParam(ctx, "id")), actor, ctx.request);
         return new Response(null, { status: 204 });
       }),

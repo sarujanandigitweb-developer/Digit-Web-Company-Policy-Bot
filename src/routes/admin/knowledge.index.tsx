@@ -73,6 +73,7 @@ import {
   type KnowledgeStats,
 } from "@/lib/api/client";
 import { useDebounced } from "@/hooks/use-debounced";
+import { useMe } from "@/hooks/use-me";
 import { DataTable, type Column, type SortState } from "@/components/admin/data-table";
 import { EmptyState, ErrorState, NoResults, TableSkeleton } from "@/components/admin/states";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -104,6 +105,10 @@ function KnowledgePage() {
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [departmentId, setDepartmentId] = useState(ALL);
+  const { data: me } = useMe();
+  // Team leaders manage one department; the server confines them to it. Reflect
+  // that in the UI so they aren't offered departments the server would override.
+  const isTeamLeader = me?.role === "team_leader";
   const [status, setStatus] = useState(ALL);
   const [uploadOpen, setUploadOpen] = useState(false);
   const [replaceTarget, setReplaceTarget] = useState<KnowledgeDocument | null>(null);
@@ -118,6 +123,13 @@ function KnowledgePage() {
     queryKey: ["departments"],
     queryFn: () => api.get<Paged<Department>>("/api/admin/departments?pageSize=100"),
   });
+
+  // A team leader only ever files into their own department, so the upload and
+  // edit dialogs offer just that one — the server enforces it either way.
+  const dialogDepartments =
+    isTeamLeader && me?.departmentId
+      ? (departments.data?.items ?? []).filter((d) => d.id === me.departmentId)
+      : (departments.data?.items ?? []);
 
   const stats = useQuery({
     queryKey: ["knowledge-stats"],
@@ -509,25 +521,27 @@ function KnowledgePage() {
           aria-label="Search documents"
           className="h-9 w-full sm:max-w-[260px]"
         />
-        <Select
-          value={departmentId}
-          onValueChange={(v) => {
-            setDepartmentId(v);
-            setPage(1);
-          }}
-        >
-          <SelectTrigger className="h-9 w-[170px]" aria-label="Filter by department">
-            <SelectValue placeholder="Department" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={ALL}>All departments</SelectItem>
-            {(departments.data?.items ?? []).map((d) => (
-              <SelectItem key={d.id} value={d.id}>
-                {d.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        {!isTeamLeader && (
+          <Select
+            value={departmentId}
+            onValueChange={(v) => {
+              setDepartmentId(v);
+              setPage(1);
+            }}
+          >
+            <SelectTrigger className="h-9 w-[170px]" aria-label="Filter by department">
+              <SelectValue placeholder="Department" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL}>All departments</SelectItem>
+              {(departments.data?.items ?? []).map((d) => (
+                <SelectItem key={d.id} value={d.id}>
+                  {d.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        )}
         <Select
           value={status}
           onValueChange={(v) => {
@@ -687,14 +701,14 @@ function KnowledgePage() {
             setReplaceTarget(null);
           }
         }}
-        departments={departments.data?.items ?? []}
+        departments={dialogDepartments}
         replaces={replaceTarget ?? undefined}
         onUploaded={invalidate}
       />
 
       <EditDocumentDialog
         document={editing}
-        departments={departments.data?.items ?? []}
+        departments={dialogDepartments}
         onOpenChange={(o) => !o && setEditing(null)}
         onSaved={invalidate}
       />
@@ -924,7 +938,7 @@ function UploadDialog({
           </div>
         </DialogHeader>
 
-        <form onSubmit={submit} className="space-y-5">
+        <form onSubmit={submit} className="min-w-0 space-y-5">
           {/* Drag-and-drop file zone */}
           <div className="space-y-1.5">
             <Label htmlFor="file-input">File</Label>

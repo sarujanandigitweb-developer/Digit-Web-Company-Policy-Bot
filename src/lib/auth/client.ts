@@ -138,6 +138,130 @@ export async function requestPasswordReset(email: string, redirectTo: string): P
   }
 }
 
+/**
+ * Changes the signed-in user's password.
+ *
+ * Neon Auth (Better Auth) verifies `currentPassword` server-side before setting
+ * the new one and rejects a wrong current password with a 400 — we never check
+ * the old password ourselves, so there is nothing to get out of sync. The session
+ * cookie identifies who is changing it; no id is sent.
+ */
+export async function changePassword(currentPassword: string, newPassword: string): Promise<void> {
+  const response = await authFetch("/change-password", {
+    method: "POST",
+    body: JSON.stringify({ currentPassword, newPassword, revokeOtherSessions: false }),
+  });
+  if (!response.ok) {
+    const body = (await response.json().catch(() => ({}))) as { message?: string; code?: string };
+    // A wrong current password is the common case and deserves its own wording;
+    // anything else surfaces the service's message.
+    const wrongCurrent = body.code === "INVALID_PASSWORD" || body.code === "INCORRECT_PASSWORD";
+    throw new AuthError(
+      wrongCurrent
+        ? "Your current password is incorrect"
+        : (body.message ?? "Could not change your password"),
+    );
+  }
+}
+
+/**
+ * Password reset by one-time code — served by our own API, not Neon Auth.
+ *
+ * Neon Auth generates an OTP but never delivers the email and won't hand us the
+ * code, so /api/auth/reset/* owns the whole path: it generates the code, emails
+ * it over SMTP, stores it hashed with an expiry, rate-limits and locks it, spends
+ * it once, and writes the new password through the Better Auth admin API. These
+ * endpoints are same-origin and public (the user is signed out), so they use a
+ * plain fetch rather than the Bearer-authenticated api client.
+ */
+
+/**
+ * Kept for backwards compatibility with callers that still catch it. The
+ * self-hosted flow no longer needs a feature-detection error, so it is never
+ * thrown — but removing the export would break existing imports.
+ */
+export class OtpUnavailableError extends AuthError {}
+
+/** Reads the server's { error: { message } } envelope, falling back to a default. */
+async function resetErrorMessage(response: Response, fallback: string): Promise<string> {
+  const body = (await response.json().catch(() => null)) as {
+    error?: { message?: string };
+  } | null;
+  return body?.error?.message ?? fallback;
+}
+
+/**
+ * Step 1 — ask our API to email a reset code.
+ *
+ * The endpoint always answers 200 { sent: true } for any well-formed email so it
+ * can't be used to discover which addresses exist; only a real server fault (5xx)
+ * or an unreachable server is surfaced.
+ */
+export async function sendResetOtp(email: string): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch("/api/auth/reset/send", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+  } catch {
+    throw new AuthError("Could not reach the server. Please try again.");
+  }
+  if (response.ok) return;
+  // 400 here means email is not configured on the server — a real, surfaced fault.
+  throw new AuthError(await resetErrorMessage(response, "Could not send the code right now."));
+}
+
+export type OtpCheck = "valid" | "invalid" | "unsupported";
+
+/**
+ * Step 2 — check a code without spending it, so the Verify page can validate
+ * before the user picks a new password.
+ */
+export async function checkResetOtp(email: string, otp: string): Promise<OtpCheck> {
+  let response: Response;
+  try {
+    response = await fetch("/api/auth/reset/verify", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, code: otp }),
+    });
+  } catch {
+    throw new AuthError("Could not reach the server. Please try again.");
+  }
+  if (response.status >= 500) {
+    throw new AuthError("Could not verify the code right now. Please try again shortly.");
+  }
+  const body = (await response.json().catch(() => ({}))) as { valid?: boolean };
+  return body.valid ? "valid" : "invalid";
+}
+
+/**
+ * Step 3 — set the new password, spending the code. A wrong or expired code, or
+ * a password the server rejects, fails here.
+ */
+export async function resetPasswordWithOtp(
+  email: string,
+  otp: string,
+  newPassword: string,
+): Promise<void> {
+  let response: Response;
+  try {
+    response = await fetch("/api/auth/reset/confirm", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ email, code: otp, password: newPassword }),
+    });
+  } catch {
+    throw new AuthError("Could not reach the server. Please try again.");
+  }
+  if (response.ok) return;
+  throw new AuthError(
+    await resetErrorMessage(response, "Could not reset your password. Please try again."),
+  );
+}
+
 export async function signOut(): Promise<void> {
   cached = null;
   await authFetch("/sign-out", { method: "POST" }).catch(() => {});

@@ -158,16 +158,16 @@ export async function remove(id: string, actor: SessionUser, request: Request): 
       );
     }
 
-    const staff = await tx.query(
+    const assigned = await tx.query(
       `SELECT count(*)::int AS count FROM profiles WHERE department_id = $1::uuid`,
       [id],
     );
-    if ((staff.rows[0].count as number) > 0) {
+    if ((assigned.rows[0].count as number) > 0) {
       // profiles.department_id is ON DELETE SET NULL, which would silently strip
-      // staff of their department and violate the staff_require_department check.
+      // team leaders of their department and violate team_leader_require_department.
       throw Conflict(
-        `Cannot delete: ${staff.rows[0].count} user(s) are assigned to this department.`,
-        { userCount: staff.rows[0].count },
+        `Cannot delete: ${assigned.rows[0].count} user(s) are assigned to this department.`,
+        { userCount: assigned.rows[0].count },
       );
     }
 

@@ -97,7 +97,7 @@ export interface AdminUser {
   user_id: string;
   email: string | null;
   full_name: string | null;
-  role: "super_admin" | "admin" | "staff";
+  role: "super_admin" | "admin" | "team_leader";
   department_id: string | null;
   department_name: string | null;
   status: "active" | "suspended";

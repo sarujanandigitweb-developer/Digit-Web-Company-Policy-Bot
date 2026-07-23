@@ -6,6 +6,7 @@ import {
   Building2,
   ChevronRight,
   FileText,
+  KeyRound,
   LayoutDashboard,
   LogOut,
   Menu,
@@ -30,8 +31,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { api, type AdminUser } from "@/lib/api/client";
+import { api } from "@/lib/api/client";
 import { signOut } from "@/lib/auth/client";
+import { ChangePasswordDialog } from "@/components/admin/change-password-dialog";
 import {
   BRAND,
   FOCUS_RING,
@@ -59,9 +61,25 @@ const NAV = [
   { to: "/admin/search", label: "Search", icon: Search, exact: false },
   { to: "/admin/analytics", label: "Analytics", icon: BarChart3, exact: false },
   { to: "/admin/departments", label: "Departments", icon: Building2, exact: false },
-  { to: "/admin/users", label: "Users", icon: UsersIcon, exact: false },
-  { to: "/admin/settings", label: "Settings", icon: SettingsIcon, exact: false },
+  { to: "/admin/users", label: "Users", icon: UsersIcon, exact: false, adminOnly: true },
+  { to: "/admin/settings", label: "Settings", icon: SettingsIcon, exact: false, adminOnly: true },
 ] as const;
+
+/** The signed-in user, from /api/me. Drives which navigation shows. */
+interface Me {
+  role: "super_admin" | "admin" | "team_leader";
+  fullName: string | null;
+  email: string | null;
+}
+
+const ROLE_LABEL: Record<Me["role"], string> = {
+  super_admin: "super admin",
+  admin: "administrator",
+  team_leader: "team leader",
+};
+
+/** Users and Settings are the admin-only pages team leaders cannot reach. */
+const ADMIN_ONLY_PREFIXES = ["/admin/users", "/admin/settings"];
 
 /**
  * Whether a nav item matches the current path.
@@ -95,6 +113,7 @@ function AdminLayout() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [collapsed, setCollapsed] = useState(false);
   const [dark, setDark] = useState(false);
+  const [passwordOpen, setPasswordOpen] = useState(false);
   const pathname = useRouterState({ select: (s) => s.location.pathname });
 
   // Same mechanism the chat screen uses, so the toggle agrees across the app.
@@ -114,10 +133,17 @@ function AdminLayout() {
     });
   }
 
-  // Doubles as the guard: the API 401s without a token and 403s for staff.
-  const { data, isLoading, isError, error } = useQuery({
+  // Doubles as the guard: /api/me 401s without a token and 403s for a suspended
+  // account. Every console role (team leader, admin, super admin) may read it, so
+  // it also tells us which navigation to show.
+  const {
+    data: me,
+    isLoading,
+    isError,
+    error,
+  } = useQuery({
     queryKey: ["me"],
-    queryFn: () => api.get<{ items: AdminUser[] }>("/api/admin/users?pageSize=1"),
+    queryFn: () => api.get<Me>("/api/me"),
     retry: false,
   });
 
@@ -135,11 +161,11 @@ function AdminLayout() {
       <div className={`flex min-h-screen items-center justify-center px-4 ${PAGE_BG}`}>
         <div className="max-w-sm text-center">
           <h1 className="text-lg font-semibold text-slate-900 dark:text-white">
-            {status === 403 ? "Admins only" : "Please sign in"}
+            {status === 403 ? "Account unavailable" : "Please sign in"}
           </h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {status === 403
-              ? "Your account doesn’t have access to the admin area."
+              ? "Your account is suspended. Contact an administrator."
               : "Your session has expired or you’re not signed in."}
           </p>
           <div className="mt-4 flex justify-center gap-2">
@@ -158,7 +184,13 @@ function AdminLayout() {
       </div>
     );
   }
-  void data;
+  const role = me?.role;
+  // Only admins and super admins reach Users and Settings; team leaders get every
+  // other page. The API enforces the same split — this just hides what they can't use.
+  const isAdmin = role === "admin" || role === "super_admin";
+  const visibleNav = NAV.filter((item) => isAdmin || !("adminOnly" in item && item.adminOnly));
+  const blockedFromPage =
+    !isAdmin && ADMIN_ONLY_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
   // Same boundary rule as the nav, so a detail route shows its parent's label
   // without "/admin/knowledge-gaps/x" ever resolving to "Knowledge".
@@ -175,7 +207,7 @@ function AdminLayout() {
   const nav = (
     <nav aria-label="Admin sections" className="flex h-full flex-col p-3">
       <div className="flex flex-col gap-1">
-        {NAV.map((item) => {
+        {visibleNav.map((item) => {
           const active = isActive(pathname, item.to, item.exact);
           return (
             <Link
@@ -303,18 +335,24 @@ function AdminLayout() {
                   style={{ background: TILE_GRADIENT }}
                   aria-label="Account menu"
                 >
-                  {initials("Admin")}
+                  {initials(me?.fullName ?? me?.email ?? "User")}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
+              <DropdownMenuContent align="end" className="w-52">
                 <DropdownMenuLabel className="text-xs font-normal text-slate-500">
-                  Signed in as administrator
+                  Signed in as {role ? ROLE_LABEL[role] : "…"}
                 </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => navigate({ to: "/admin/settings" })}>
-                  <SettingsIcon className="mr-2 h-4 w-4" />
-                  Settings
+                <DropdownMenuItem onClick={() => setPasswordOpen(true)}>
+                  <KeyRound className="mr-2 h-4 w-4" />
+                  Change password
                 </DropdownMenuItem>
+                {isAdmin && (
+                  <DropdownMenuItem onClick={() => navigate({ to: "/admin/settings" })}>
+                    <SettingsIcon className="mr-2 h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                )}
                 <DropdownMenuSeparator />
                 <DropdownMenuItem onClick={handleSignOut} className="text-red-600">
                   <LogOut className="mr-2 h-4 w-4" />
@@ -356,8 +394,24 @@ function AdminLayout() {
           collapsed ? "lg:pl-[92px]" : "lg:pl-[264px]"
         }`}
       >
-        <Outlet />
+        {blockedFromPage ? (
+          <div className="mx-auto max-w-sm py-24 text-center">
+            <h1 className="text-lg font-semibold text-slate-900 dark:text-white">
+              This page is restricted
+            </h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              Your role doesn’t have access to this page. Choose another section from the menu.
+            </p>
+            <Button className="mt-4" onClick={() => navigate({ to: "/admin" })}>
+              Back to dashboard
+            </Button>
+          </div>
+        ) : (
+          <Outlet />
+        )}
       </main>
+
+      <ChangePasswordDialog open={passwordOpen} onOpenChange={setPasswordOpen} />
     </div>
   );
 }

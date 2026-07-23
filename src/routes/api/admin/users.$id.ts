@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/admin/users/$id")({
       }),
 
       // Admin-level guard; the service narrows it further — admins may only touch
-      // staff, and only a super admin may change a role.
+      // team leaders, and only a super admin may change a role.
       PATCH: api(async (ctx) => {
         const actor = await requireAdmin(ctx.request);
         const id = uuid.parse(routeParam(ctx, "id"));

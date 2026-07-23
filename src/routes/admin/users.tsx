@@ -137,9 +137,9 @@ function UsersPage() {
     queryKey: ["users-count", "super_admin"],
     queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users?pageSize=1&role=super_admin"),
   });
-  const countStaff = useQuery({
-    queryKey: ["users-count", "staff"],
-    queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users?pageSize=1&role=staff"),
+  const countTeamLeaders = useQuery({
+    queryKey: ["users-count", "team_leader"],
+    queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users?pageSize=1&role=team_leader"),
   });
 
   const invalidate = () => {
@@ -350,14 +350,14 @@ function UsersPage() {
           }}
         />
         <Kpi
-          label="Staff"
-          value={countStaff.data?.total ?? 0}
+          label="Team Leaders"
+          value={countTeamLeaders.data?.total ?? 0}
           icon={Building2}
           tone="slate"
           hint="Department-scoped"
-          active={role === "staff"}
+          active={role === "team_leader"}
           onClick={() => {
-            setRole(role === "staff" ? ALL : "staff");
+            setRole(role === "team_leader" ? ALL : "team_leader");
             setPage(1);
           }}
         />
@@ -384,7 +384,7 @@ function UsersPage() {
           options={[
             ["super_admin", "Super Admin"],
             ["admin", "Admin"],
-            ["staff", "Staff"],
+            ["team_leader", "Team Leader"],
           ]}
         />
         <FilterSelect
@@ -549,7 +549,7 @@ function UserFormDialog({
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-  const [role, setRole] = useState<string>("staff");
+  const [role, setRole] = useState<string>("team_leader");
   const [departmentId, setDepartmentId] = useState<string>(ALL);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
@@ -561,7 +561,7 @@ function UserFormDialog({
     setEmail(user?.email ?? "");
     setPassword("");
     setShowPassword(false);
-    setRole(user?.role ?? "staff");
+    setRole(user?.role ?? "team_leader");
     setDepartmentId(user?.department_id ?? ALL);
     setFieldErrors({});
     setFormError(null);
@@ -702,7 +702,7 @@ function UserFormDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="staff">Staff</SelectItem>
+                  <SelectItem value="team_leader">Team Leader</SelectItem>
                   <SelectItem value="admin">Admin</SelectItem>
                   <SelectItem value="super_admin">Super Admin</SelectItem>
                 </SelectContent>
@@ -732,8 +732,8 @@ function UserFormDialog({
           </div>
           {/* One hint under the pair, since the rule spans both fields. */}
           <p className="-mt-2 text-xs text-slate-500 dark:text-slate-400">
-            {role === "staff"
-              ? "Staff must be assigned to a department."
+            {role === "team_leader"
+              ? "Team leaders must be assigned to a department."
               : "Admins and super admins are not scoped to a department."}
           </p>
 

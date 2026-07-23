@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireAdmin, requireSuperAdmin } from "@/lib/auth/session.server";
+import { requireAdminArea, requireSuperAdmin } from "@/lib/auth/session.server";
 import { api, jsonBody, routeParam } from "@/lib/http/handler";
 import { ok } from "@/lib/http/errors";
 import { updateDepartmentSchema, uuid } from "@/lib/validators/admin";
@@ -10,13 +10,13 @@ export const Route = createFileRoute("/api/admin/departments/$id")({
   server: {
     handlers: {
       GET: api(async (ctx) => {
-        await requireAdmin(ctx.request);
+        await requireAdminArea(ctx.request);
         const id = uuid.parse(routeParam(ctx, "id"));
         return ok(await departments.getById(id));
       }),
 
       PATCH: api(async (ctx) => {
-        const actor = await requireAdmin(ctx.request);
+        const actor = await requireAdminArea(ctx.request);
         const id = uuid.parse(routeParam(ctx, "id"));
         const input = updateDepartmentSchema.parse(await jsonBody(ctx.request));
         return ok(await departments.update(id, input, actor, ctx.request));

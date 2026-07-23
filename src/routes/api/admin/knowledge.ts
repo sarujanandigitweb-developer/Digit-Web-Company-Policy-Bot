@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
-import { requireAdmin } from "@/lib/auth/session.server";
+import { knowledgeScope, requireAdminArea } from "@/lib/auth/session.server";
 import { api } from "@/lib/http/handler";
 import { BadRequest, ok } from "@/lib/http/errors";
 import { listDocumentsQuerySchema, uploadFieldsSchema } from "@/lib/validators/knowledge";
@@ -20,16 +20,17 @@ export const Route = createFileRoute("/api/admin/knowledge")({
   server: {
     handlers: {
       GET: api(async ({ request }) => {
-        await requireAdmin(request);
+        const user = await requireAdminArea(request);
         const query = listDocumentsQuerySchema.parse(
           Object.fromEntries(new URL(request.url).searchParams),
         );
-        const { items, total } = await knowledge.list(query);
+        // A team leader's list is confined to their department, server-side.
+        const { items, total } = await knowledge.list(query, knowledgeScope(user));
         return ok({ items, page: query.page, pageSize: query.pageSize, total });
       }),
 
       POST: api(async ({ request }) => {
-        const actor = await requireAdmin(request);
+        const actor = await requireAdminArea(request);
 
         const form = await request.formData().catch(() => null);
         if (!form) throw BadRequest("Expected multipart/form-data with a 'file' field");

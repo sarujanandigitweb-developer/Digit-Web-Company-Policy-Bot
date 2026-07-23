@@ -25,13 +25,13 @@ export interface AdminUser {
 /**
  * Whether `actor` may act on a user holding `targetRole`.
  *
- * Admins manage staff only. Without this an admin could edit or suspend a peer
- * — or a super admin — which would make the role hierarchy decorative.
+ * Admins manage team leaders only. Without this an admin could edit or suspend a
+ * peer — or a super admin — which would make the role hierarchy decorative.
  */
 function assertCanManage(actor: SessionUser, targetRole: Role): void {
   if (actor.role === "super_admin") return;
-  if (actor.role === "admin" && targetRole === "staff") return;
-  throw Forbidden(`Admins can only manage staff accounts`);
+  if (actor.role === "admin" && targetRole === "team_leader") return;
+  throw Forbidden(`Admins can only manage team leader accounts`);
 }
 
 /** Guards against removing the last way into the system. */
@@ -130,8 +130,8 @@ export async function create(
   }
 
   // Rejected before the identity exists, so a bad department cannot orphan one.
-  if (input.role === "staff" && !input.departmentId) {
-    throw BadRequest("Staff must be assigned to a department");
+  if (input.role === "team_leader" && !input.departmentId) {
+    throw BadRequest("Team leaders must be assigned to a department");
   }
   if (input.departmentId) await assertDepartmentExists(input.departmentId);
 
@@ -199,7 +199,7 @@ export async function update(
     assertCanManage(actor, current.role);
 
     if (input.role && input.role !== current.role) {
-      // Changing roles is a super admin power even when the target is staff.
+      // Changing roles is a super admin power even when the target is a team leader.
       if (actor.role !== "super_admin") throw Forbidden("Only a super admin can change roles");
       if (id === actor.userId) throw Forbidden("You cannot change your own role");
       if (current.role === "super_admin") await assertNotLastSuperAdmin(tx, id);
@@ -213,13 +213,13 @@ export async function update(
       }
     }
 
-    // The staff_require_department CHECK rejects staff without a department; catch
-    // the combination here so the caller gets a reason instead of a constraint name.
+    // The team_leader_require_department CHECK rejects a team leader without a
+    // department; catch it here so the caller gets a reason, not a constraint name.
     const nextRole = input.role ?? current.role;
     const nextDepartment =
       input.departmentId !== undefined ? input.departmentId : current.department_id;
-    if (nextRole === "staff" && !nextDepartment) {
-      throw BadRequest("Staff must be assigned to a department");
+    if (nextRole === "team_leader" && !nextDepartment) {
+      throw BadRequest("Team leaders must be assigned to a department");
     }
 
     const { rows } = await tx.query(

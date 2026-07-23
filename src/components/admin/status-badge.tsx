@@ -17,13 +17,13 @@ const STYLES: Record<string, string> = {
   offline: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-300",
   super_admin: "bg-[#15243D] text-white dark:bg-[#2b4a82]",
   admin: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
-  staff: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300",
+  team_leader: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300",
 };
 
 const LABELS: Record<string, string> = {
   super_admin: "Super Admin",
   admin: "Admin",
-  staff: "Staff",
+  team_leader: "Team Leader",
 };
 
 export function StatusBadge({ value }: { value: string }) {

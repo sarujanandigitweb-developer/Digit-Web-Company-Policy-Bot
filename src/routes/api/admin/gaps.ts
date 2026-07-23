@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireAdmin } from "@/lib/auth/session.server";
+import { requireAdminArea } from "@/lib/auth/session.server";
 import { api } from "@/lib/http/handler";
 import { ok } from "@/lib/http/errors";
 import { listGapsQuerySchema } from "@/lib/validators/admin";
@@ -10,7 +10,7 @@ export const Route = createFileRoute("/api/admin/gaps")({
   server: {
     handlers: {
       GET: api(async ({ request }) => {
-        await requireAdmin(request);
+        await requireAdminArea(request);
         const query = listGapsQuerySchema.parse(
           Object.fromEntries(new URL(request.url).searchParams),
         );

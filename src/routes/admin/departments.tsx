@@ -45,6 +45,7 @@ import {
 } from "@/components/ui/select";
 import { api, ApiError, qs, type Department, type Paged } from "@/lib/api/client";
 import { useDebounced } from "@/hooks/use-debounced";
+import { useMe } from "@/hooks/use-me";
 import { DataTable, type Column } from "@/components/admin/data-table";
 import { EmptyState, NoResults } from "@/components/admin/states";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -69,6 +70,10 @@ type ViewMode = "list" | "grid";
 
 function DepartmentsPage() {
   const qc = useQueryClient();
+  const { data: me } = useMe();
+  // Creating and deleting departments are super-admin actions; hide those
+  // controls for everyone else rather than let them hit a 403.
+  const canManageStructure = me?.role === "super_admin";
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounced(search);
@@ -127,15 +132,17 @@ function DepartmentsPage() {
       >
         <Pencil className="h-4 w-4" />
       </Button>
-      <Button
-        variant="ghost"
-        size="icon"
-        className="h-8 w-8 text-slate-400 hover:text-red-600"
-        aria-label={`Delete ${d.name}`}
-        onClick={() => setDeleting(d)}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
+      {canManageStructure && (
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-8 w-8 text-slate-400 hover:text-red-600"
+          aria-label={`Delete ${d.name}`}
+          onClick={() => setDeleting(d)}
+        >
+          <Trash2 className="h-4 w-4" />
+        </Button>
+      )}
     </div>
   );
 
@@ -197,9 +204,9 @@ function DepartmentsPage() {
         render: rowActions,
       },
     ],
-    // rowActions closes over stable setters only.
-
-    [],
+    // rowActions depends on canManageStructure (it shows/hides delete).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [canManageStructure],
   );
 
   const filtered = statusFilter !== ALL;
@@ -215,17 +222,19 @@ function DepartmentsPage() {
     <EmptyState
       icon={Building2}
       title="No departments yet"
-      description="Create one to start organising knowledge and staff."
+      description="Create one to start organising knowledge and team members."
       action={
-        <Button
-          size="sm"
-          style={{ background: BRAND }}
-          className="text-white"
-          onClick={() => setCreateOpen(true)}
-        >
-          <Plus className="mr-1.5 h-3.5 w-3.5" />
-          New department
-        </Button>
+        canManageStructure ? (
+          <Button
+            size="sm"
+            style={{ background: BRAND }}
+            className="text-white"
+            onClick={() => setCreateOpen(true)}
+          >
+            <Plus className="mr-1.5 h-3.5 w-3.5" />
+            New department
+          </Button>
+        ) : undefined
       }
     />
   );
@@ -234,17 +243,19 @@ function DepartmentsPage() {
     <div className="mx-auto w-full max-w-[1400px] space-y-6">
       <PageHeader
         title="Departments"
-        description="Knowledge and staff are scoped to a department."
+        description="Knowledge and team members are scoped to a department."
         actions={
-          <Button
-            size="sm"
-            className="h-9 gap-2 text-white"
-            style={{ background: BRAND }}
-            onClick={() => setCreateOpen(true)}
-          >
-            <Plus className="h-3.5 w-3.5" />
-            New department
-          </Button>
+          canManageStructure ? (
+            <Button
+              size="sm"
+              className="h-9 gap-2 text-white"
+              style={{ background: BRAND }}
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="h-3.5 w-3.5" />
+              New department
+            </Button>
+          ) : undefined
         }
       />
 

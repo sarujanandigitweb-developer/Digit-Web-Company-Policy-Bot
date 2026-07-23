@@ -98,9 +98,17 @@ function DashboardPage() {
     queryKey: ["dash-departments"],
     queryFn: () => api.get<Paged<Department>>("/api/admin/departments?pageSize=1"),
   });
+  // Only admins can read the users endpoint, so team leaders skip this query and
+  // the tile it feeds — the same access split the API enforces.
+  const me = useQuery({
+    queryKey: ["me"],
+    queryFn: () => api.get<{ role: "super_admin" | "admin" | "team_leader" }>("/api/me"),
+  });
+  const isAdmin = me.data?.role === "admin" || me.data?.role === "super_admin";
   const users = useQuery({
     queryKey: ["dash-users"],
     queryFn: () => api.get<Paged<AdminUser>>("/api/admin/users?pageSize=1&status=active"),
+    enabled: isAdmin,
   });
   const analytics = useQuery({
     queryKey: ["dash-analytics"],
@@ -266,13 +274,15 @@ function DashboardPage() {
               note="Active"
               tone="emerald"
             />
-            <MiniStat
-              icon={UsersIcon}
-              value={users.data?.total ?? 0}
-              label="Users"
-              note="Active"
-              tone="blue"
-            />
+            {isAdmin && (
+              <MiniStat
+                icon={UsersIcon}
+                value={users.data?.total ?? 0}
+                label="Users"
+                note="Active"
+                tone="blue"
+              />
+            )}
             <MiniStat
               icon={MessagesSquare}
               value={conversations.data?.total ?? 0}

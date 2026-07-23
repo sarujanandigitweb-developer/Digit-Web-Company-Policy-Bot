@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireAdmin } from "@/lib/auth/session.server";
+import { requireAdminArea } from "@/lib/auth/session.server";
 import { api } from "@/lib/http/handler";
 import { ok } from "@/lib/http/errors";
 import { sql } from "@/lib/db/client.server";
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/admin/activity")({
   server: {
     handlers: {
       GET: api(async ({ request }) => {
-        await requireAdmin(request);
+        await requireAdminArea(request);
         const limit = Math.min(Number(new URL(request.url).searchParams.get("limit") ?? 15), 50);
 
         const items = await sql`

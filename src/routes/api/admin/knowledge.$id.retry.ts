@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
-import { requireAdmin } from "@/lib/auth/session.server";
+import { knowledgeScope, requireAdminArea } from "@/lib/auth/session.server";
 import { api, routeParam } from "@/lib/http/handler";
 import { ok } from "@/lib/http/errors";
 import { uuid } from "@/lib/validators/admin";
@@ -17,9 +17,10 @@ export const Route = createFileRoute("/api/admin/knowledge/$id/retry")({
   server: {
     handlers: {
       POST: api(async (ctx) => {
-        await requireAdmin(ctx.request);
+        const user = await requireAdminArea(ctx.request);
         const id = uuid.parse(routeParam(ctx, "id"));
-        const document = await knowledge.getById(id); // 404s before queueing
+        // Scoped: a team leader can only retry a document in their department.
+        const document = await knowledge.getById(id, knowledgeScope(user));
 
         waitUntil(
           processDocument(id).catch((error) => {

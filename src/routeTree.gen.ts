@@ -10,9 +10,11 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as ApiMeRouteImport } from './routes/api/me'
 import { Route as ApiDepartmentsRouteImport } from './routes/api/departments'
 import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
@@ -33,6 +35,9 @@ import { Route as ApiAdminConversationsRouteImport } from './routes/api/admin/co
 import { Route as ApiAdminActivityRouteImport } from './routes/api/admin/activity'
 import { Route as AdminKnowledgeIdRouteImport } from './routes/admin/knowledge.$id'
 import { Route as AdminConversationsIdRouteImport } from './routes/admin/conversations.$id'
+import { Route as ApiAuthResetVerifyRouteImport } from './routes/api/auth/reset.verify'
+import { Route as ApiAuthResetSendRouteImport } from './routes/api/auth/reset.send'
+import { Route as ApiAuthResetConfirmRouteImport } from './routes/api/auth/reset.confirm'
 import { Route as ApiAdminUsersIdRouteImport } from './routes/api/admin/users.$id'
 import { Route as ApiAdminSystemStatusRouteImport } from './routes/api/admin/system.status'
 import { Route as ApiAdminKnowledgeStatsRouteImport } from './routes/api/admin/knowledge.stats'
@@ -52,6 +57,11 @@ const LoginRoute = LoginRouteImport.update({
   path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminRoute = AdminRouteImport.update({
   id: '/admin',
   path: '/admin',
@@ -66,6 +76,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const ApiMeRoute = ApiMeRouteImport.update({
+  id: '/api/me',
+  path: '/api/me',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDepartmentsRoute = ApiDepartmentsRouteImport.update({
   id: '/api/departments',
@@ -167,6 +182,21 @@ const AdminConversationsIdRoute = AdminConversationsIdRouteImport.update({
   path: '/conversations/$id',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiAuthResetVerifyRoute = ApiAuthResetVerifyRouteImport.update({
+  id: '/api/auth/reset/verify',
+  path: '/api/auth/reset/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthResetSendRoute = ApiAuthResetSendRouteImport.update({
+  id: '/api/auth/reset/send',
+  path: '/api/auth/reset/send',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthResetConfirmRoute = ApiAuthResetConfirmRouteImport.update({
+  id: '/api/auth/reset/confirm',
+  path: '/api/auth/reset/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminUsersIdRoute = ApiAdminUsersIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -240,6 +270,7 @@ const ApiAdminKnowledgeIdChunksRoute =
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -249,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/admin/users': typeof AdminUsersRoute
   '/api/chat': typeof ApiChatRouteWithChildren
   '/api/departments': typeof ApiDepartmentsRoute
+  '/api/me': typeof ApiMeRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/conversations/$id': typeof AdminConversationsIdRoute
   '/admin/knowledge/$id': typeof AdminKnowledgeIdRoute
@@ -273,11 +305,15 @@ export interface FileRoutesByFullPath {
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
   '/api/admin/system/status': typeof ApiAdminSystemStatusRoute
   '/api/admin/users/$id': typeof ApiAdminUsersIdRoute
+  '/api/auth/reset/confirm': typeof ApiAuthResetConfirmRoute
+  '/api/auth/reset/send': typeof ApiAuthResetSendRoute
+  '/api/auth/reset/verify': typeof ApiAuthResetVerifyRoute
   '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
   '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -287,6 +323,7 @@ export interface FileRoutesByTo {
   '/admin/users': typeof AdminUsersRoute
   '/api/chat': typeof ApiChatRouteWithChildren
   '/api/departments': typeof ApiDepartmentsRoute
+  '/api/me': typeof ApiMeRoute
   '/admin': typeof AdminIndexRoute
   '/admin/conversations/$id': typeof AdminConversationsIdRoute
   '/admin/knowledge/$id': typeof AdminKnowledgeIdRoute
@@ -311,6 +348,9 @@ export interface FileRoutesByTo {
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
   '/api/admin/system/status': typeof ApiAdminSystemStatusRoute
   '/api/admin/users/$id': typeof ApiAdminUsersIdRoute
+  '/api/auth/reset/confirm': typeof ApiAuthResetConfirmRoute
+  '/api/auth/reset/send': typeof ApiAuthResetSendRoute
+  '/api/auth/reset/verify': typeof ApiAuthResetVerifyRoute
   '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
   '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
 }
@@ -318,6 +358,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -327,6 +368,7 @@ export interface FileRoutesById {
   '/admin/users': typeof AdminUsersRoute
   '/api/chat': typeof ApiChatRouteWithChildren
   '/api/departments': typeof ApiDepartmentsRoute
+  '/api/me': typeof ApiMeRoute
   '/admin/': typeof AdminIndexRoute
   '/admin/conversations/$id': typeof AdminConversationsIdRoute
   '/admin/knowledge/$id': typeof AdminKnowledgeIdRoute
@@ -351,6 +393,9 @@ export interface FileRoutesById {
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
   '/api/admin/system/status': typeof ApiAdminSystemStatusRoute
   '/api/admin/users/$id': typeof ApiAdminUsersIdRoute
+  '/api/auth/reset/confirm': typeof ApiAuthResetConfirmRoute
+  '/api/auth/reset/send': typeof ApiAuthResetSendRoute
+  '/api/auth/reset/verify': typeof ApiAuthResetVerifyRoute
   '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
   '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
 }
@@ -359,6 +404,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/forgot-password'
     | '/login'
     | '/admin/analytics'
     | '/admin/departments'
@@ -368,6 +414,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/api/chat'
     | '/api/departments'
+    | '/api/me'
     | '/admin/'
     | '/admin/conversations/$id'
     | '/admin/knowledge/$id'
@@ -392,11 +439,15 @@ export interface FileRouteTypes {
     | '/api/admin/knowledge/stats'
     | '/api/admin/system/status'
     | '/api/admin/users/$id'
+    | '/api/auth/reset/confirm'
+    | '/api/auth/reset/send'
+    | '/api/auth/reset/verify'
     | '/api/admin/knowledge/$id/chunks'
     | '/api/admin/knowledge/$id/retry'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/forgot-password'
     | '/login'
     | '/admin/analytics'
     | '/admin/departments'
@@ -406,6 +457,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/api/chat'
     | '/api/departments'
+    | '/api/me'
     | '/admin'
     | '/admin/conversations/$id'
     | '/admin/knowledge/$id'
@@ -430,12 +482,16 @@ export interface FileRouteTypes {
     | '/api/admin/knowledge/stats'
     | '/api/admin/system/status'
     | '/api/admin/users/$id'
+    | '/api/auth/reset/confirm'
+    | '/api/auth/reset/send'
+    | '/api/auth/reset/verify'
     | '/api/admin/knowledge/$id/chunks'
     | '/api/admin/knowledge/$id/retry'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/forgot-password'
     | '/login'
     | '/admin/analytics'
     | '/admin/departments'
@@ -445,6 +501,7 @@ export interface FileRouteTypes {
     | '/admin/users'
     | '/api/chat'
     | '/api/departments'
+    | '/api/me'
     | '/admin/'
     | '/admin/conversations/$id'
     | '/admin/knowledge/$id'
@@ -469,6 +526,9 @@ export interface FileRouteTypes {
     | '/api/admin/knowledge/stats'
     | '/api/admin/system/status'
     | '/api/admin/users/$id'
+    | '/api/auth/reset/confirm'
+    | '/api/auth/reset/send'
+    | '/api/auth/reset/verify'
     | '/api/admin/knowledge/$id/chunks'
     | '/api/admin/knowledge/$id/retry'
   fileRoutesById: FileRoutesById
@@ -476,9 +536,11 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
   ApiChatRoute: typeof ApiChatRouteWithChildren
   ApiDepartmentsRoute: typeof ApiDepartmentsRoute
+  ApiMeRoute: typeof ApiMeRoute
   ApiAdminActivityRoute: typeof ApiAdminActivityRoute
   ApiAdminConversationsRoute: typeof ApiAdminConversationsRouteWithChildren
   ApiAdminDepartmentsRoute: typeof ApiAdminDepartmentsRouteWithChildren
@@ -488,6 +550,9 @@ export interface RootRouteChildren {
   ApiAdminUsersRoute: typeof ApiAdminUsersRouteWithChildren
   ApiAdminAnalyticsKnowledgeRoute: typeof ApiAdminAnalyticsKnowledgeRoute
   ApiAdminSystemStatusRoute: typeof ApiAdminSystemStatusRoute
+  ApiAuthResetConfirmRoute: typeof ApiAuthResetConfirmRoute
+  ApiAuthResetSendRoute: typeof ApiAuthResetSendRoute
+  ApiAuthResetVerifyRoute: typeof ApiAuthResetVerifyRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -497,6 +562,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -519,6 +591,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/me': {
+      id: '/api/me'
+      path: '/api/me'
+      fullPath: '/api/me'
+      preLoaderRoute: typeof ApiMeRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/departments': {
       id: '/api/departments'
@@ -659,6 +738,27 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/conversations/$id'
       preLoaderRoute: typeof AdminConversationsIdRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/auth/reset/verify': {
+      id: '/api/auth/reset/verify'
+      path: '/api/auth/reset/verify'
+      fullPath: '/api/auth/reset/verify'
+      preLoaderRoute: typeof ApiAuthResetVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/reset/send': {
+      id: '/api/auth/reset/send'
+      path: '/api/auth/reset/send'
+      fullPath: '/api/auth/reset/send'
+      preLoaderRoute: typeof ApiAuthResetSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/reset/confirm': {
+      id: '/api/auth/reset/confirm'
+      path: '/api/auth/reset/confirm'
+      fullPath: '/api/auth/reset/confirm'
+      preLoaderRoute: typeof ApiAuthResetConfirmRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/admin/users/$id': {
       id: '/api/admin/users/$id'
@@ -878,9 +978,11 @@ const ApiAdminUsersRouteWithChildren = ApiAdminUsersRoute._addFileChildren(
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,
   ApiChatRoute: ApiChatRouteWithChildren,
   ApiDepartmentsRoute: ApiDepartmentsRoute,
+  ApiMeRoute: ApiMeRoute,
   ApiAdminActivityRoute: ApiAdminActivityRoute,
   ApiAdminConversationsRoute: ApiAdminConversationsRouteWithChildren,
   ApiAdminDepartmentsRoute: ApiAdminDepartmentsRouteWithChildren,
@@ -890,6 +992,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminUsersRoute: ApiAdminUsersRouteWithChildren,
   ApiAdminAnalyticsKnowledgeRoute: ApiAdminAnalyticsKnowledgeRoute,
   ApiAdminSystemStatusRoute: ApiAdminSystemStatusRoute,
+  ApiAuthResetConfirmRoute: ApiAuthResetConfirmRoute,
+  ApiAuthResetSendRoute: ApiAuthResetSendRoute,
+  ApiAuthResetVerifyRoute: ApiAuthResetVerifyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

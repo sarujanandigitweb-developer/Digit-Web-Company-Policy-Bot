@@ -126,11 +126,25 @@ export async function requireRole(request: Request, roles: Role[]): Promise<Sess
   return user;
 }
 
-/** Any authenticated, active account. */
-export const requireStaff = (request: Request) =>
-  requireRole(request, ["staff", "admin", "super_admin"]);
+/**
+ * Admin-console access. Team leaders reach every page except Users and Settings;
+ * those two keep requireAdmin. Use this for the pages a team leader may open.
+ */
+export const requireAdminArea = (request: Request) =>
+  requireRole(request, ["team_leader", "admin", "super_admin"]);
 
-/** Management side — admins and super admins, who see every department. */
+/** Management side — admins and super admins. Gates Users and Settings. */
 export const requireAdmin = (request: Request) => requireRole(request, ["admin", "super_admin"]);
 
 export const requireSuperAdmin = (request: Request) => requireRole(request, ["super_admin"]);
+
+/**
+ * The department a user's knowledge actions are confined to, or null for no
+ * limit. Team leaders are locked to the department they lead — every knowledge
+ * endpoint passes this to the service so they can never see, edit or delete a
+ * document outside it, even by guessing its id. Admins and super admins get null
+ * (all departments).
+ */
+export function knowledgeScope(user: SessionUser): string | null {
+  return user.role === "team_leader" ? user.departmentId : null;
+}

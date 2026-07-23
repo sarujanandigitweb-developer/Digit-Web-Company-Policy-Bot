@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { requireAdmin, requireSuperAdmin } from "@/lib/auth/session.server";
+import { requireAdminArea, requireSuperAdmin } from "@/lib/auth/session.server";
 import { api, jsonBody } from "@/lib/http/handler";
 import { ok } from "@/lib/http/errors";
 import { createDepartmentSchema, listQuerySchema } from "@/lib/validators/admin";
@@ -15,7 +15,7 @@ export const Route = createFileRoute("/api/admin/departments")({
   server: {
     handlers: {
       GET: api(async ({ request }) => {
-        await requireAdmin(request);
+        await requireAdminArea(request);
         const query = listQuerySchema.parse(Object.fromEntries(new URL(request.url).searchParams));
         const { items, total } = await departments.list(query);
         return ok({ items, page: query.page, pageSize: query.pageSize, total });

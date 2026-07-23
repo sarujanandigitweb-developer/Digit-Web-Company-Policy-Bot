@@ -8,7 +8,7 @@ import { z } from "zod";
 
 export const uuid = z.string().uuid("Must be a valid id");
 
-export const roleSchema = z.enum(["super_admin", "admin", "staff"]);
+export const roleSchema = z.enum(["super_admin", "admin", "team_leader"]);
 export const userStatusSchema = z.enum(["active", "suspended"]);
 export const departmentStatusSchema = z.enum(["active", "inactive"]);
 

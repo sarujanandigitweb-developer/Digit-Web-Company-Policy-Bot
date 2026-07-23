@@ -1,6 +1,6 @@
 import { sql, withTransaction } from "@/lib/db/client.server";
 import { write as writeAudit } from "@/lib/audit/log.server";
-import type { SessionUser } from "@/lib/auth/session.server";
+import { knowledgeScope, type SessionUser } from "@/lib/auth/session.server";
 import { BadRequest, Conflict, NotFound } from "@/lib/http/errors";
 import {
   fileTypeFromName,
@@ -80,6 +80,8 @@ const DOCUMENT_SORT_SQL: Record<string, string> = {
 
 export async function list(
   query: ListDocumentsQuery,
+  /** When set (a team leader's department), the list is hard-limited to it. */
+  restrictTo: string | null = null,
 ): Promise<{ items: KnowledgeDocument[]; total: number }> {
   const offset = (query.page - 1) * query.pageSize;
   const search = query.search ?? null;
@@ -94,6 +96,9 @@ export async function list(
              OR d.file_name ILIKE '%' || ${search} || '%')
       AND (${query.departmentId ?? null}::uuid IS NULL
              OR d.department_id = ${query.departmentId ?? null}::uuid)
+      -- Scope guard: a team leader only ever sees their own department, no matter
+      -- what departmentId the client asked for.
+      AND (${restrictTo}::uuid IS NULL OR d.department_id = ${restrictTo}::uuid)
       AND (${query.status ?? null}::document_status IS NULL
              OR d.status = ${query.status ?? null}::document_status)
     ORDER BY ${sql.unsafe(orderColumn)} ${sql.unsafe(orderDir)} NULLS LAST, d.id
@@ -104,13 +109,29 @@ export async function list(
   return { items, total: rows[0]?.total_count ?? 0 };
 }
 
-export async function getById(id: string): Promise<KnowledgeDocument> {
+export async function getById(
+  id: string,
+  /** A team leader's department. A document outside it 404s, hiding its existence. */
+  restrictTo: string | null = null,
+): Promise<KnowledgeDocument> {
   const rows = (await sql`
     SELECT ${sql.unsafe(DOCUMENT_COLUMNS)} ${sql.unsafe(DOCUMENT_JOINS)}
     WHERE d.id = ${id}::uuid
   `) as KnowledgeDocument[];
-  if (!rows[0]) throw NotFound("Document not found");
-  return rows[0];
+  const doc = rows[0];
+  if (!doc || (restrictTo && doc.department_id !== restrictTo))
+    throw NotFound("Document not found");
+  return doc;
+}
+
+/**
+ * Guards a write action against a document outside the actor's scope. A team
+ * leader acting on another department's document is refused as if the document
+ * did not exist, so scoping never leaks which documents live elsewhere.
+ */
+function assertInScope(actor: SessionUser, documentDepartmentId: string): void {
+  const scope = knowledgeScope(actor);
+  if (scope && documentDepartmentId !== scope) throw NotFound("Document not found");
 }
 
 export interface ChunkRow {
@@ -122,8 +143,13 @@ export interface ChunkRow {
   has_embedding: boolean;
 }
 
-export async function listChunks(documentId: string, limit = 100, offset = 0) {
-  await getById(documentId); // 404s for an unknown document rather than [].
+export async function listChunks(
+  documentId: string,
+  limit = 100,
+  offset = 0,
+  restrictTo: string | null = null,
+) {
+  await getById(documentId, restrictTo); // 404s for an unknown or out-of-scope document.
   const rows = (await sql`
     SELECT id, chunk_index, content, heading, page_number,
            (embedding IS NOT NULL) AS has_embedding,
@@ -163,6 +189,12 @@ export async function upload(
   if (input.buffer.length > MAX_FILE_BYTES) {
     throw BadRequest(`File exceeds the ${MAX_FILE_BYTES / 1024 / 1024}MB limit`);
   }
+
+  // A team leader can only upload into the department they lead — the chosen
+  // department is overridden rather than trusted, so a crafted request can't
+  // plant a document in someone else's department.
+  const scope = knowledgeScope(actor);
+  if (scope) input = { ...input, departmentId: scope };
 
   const fileType = fileTypeFromName(input.fileName);
   const checksum = createHash("sha256").update(input.buffer).digest("hex");
@@ -263,6 +295,7 @@ export async function setStatus(
       [id],
     );
     if (!before.rowCount) throw NotFound("Document not found");
+    assertInScope(actor, before.rows[0].department_id);
     const current = before.rows[0] as { status: DocumentStatus; chunk_count: number };
 
     if (status === "active" && current.status === "processing") {
@@ -333,6 +366,10 @@ export async function updateMetadata(
   actor: SessionUser,
   request: Request,
 ): Promise<KnowledgeDocument> {
+  // Team leaders may edit title and description but not move a document out of
+  // (or into) their department, so the department change is dropped for them.
+  if (knowledgeScope(actor)) input = { ...input, departmentId: undefined };
+
   if (input.departmentId) {
     const dept = (await sql`
       SELECT status FROM departments WHERE id = ${input.departmentId}::uuid
@@ -347,6 +384,7 @@ export async function updateMetadata(
       [id],
     );
     if (!before.rowCount) throw NotFound("Document not found");
+    assertInScope(actor, before.rows[0].department_id);
     const current = before.rows[0] as { department_id: string; checksum: string; status: string };
 
     // The (department_id, checksum) uniqueness over non-archived rows means moving
@@ -416,6 +454,7 @@ export async function remove(id: string, actor: SessionUser, request: Request): 
       [id],
     );
     if (!before.rowCount) throw NotFound("Document not found");
+    assertInScope(actor, before.rows[0].department_id);
     const { extracted_text: _drop, ...auditable } = before.rows[0];
 
     await writeAudit(tx, {
