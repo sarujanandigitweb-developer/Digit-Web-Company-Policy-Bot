@@ -665,15 +665,38 @@ function KnowledgePage() {
           ) : analytics.isError ? (
             <ErrorState error={analytics.error} onRetry={() => analytics.refetch()} />
           ) : (
-            <ResponsiveContainer width="100%" height={200}>
-              <BarChart data={analytics.data?.byDepartment ?? []}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
-                <XAxis dataKey="department" tick={{ fontSize: 10 }} interval={0} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 10 }} width={20} />
-                <Tooltip cursor={{ fill: "rgba(43,108,243,0.06)" }} />
-                <Bar dataKey="documents" fill={BRAND} radius={[4, 4, 0, 0]} maxBarSize={28} />
-              </BarChart>
-            </ResponsiveContainer>
+            (() => {
+              const data = [...(analytics.data?.byDepartment ?? [])].sort(
+                (a, b) => b.documents - a.documents,
+              );
+              const chartHeight = Math.max(190, data.length * 28);
+              return (
+                <div className="max-h-[240px] overflow-y-auto pr-1">
+                  <ResponsiveContainer width="100%" height={chartHeight}>
+                    <BarChart
+                      data={data}
+                      layout="vertical"
+                      margin={{ top: 0, right: 12, bottom: 0, left: 4 }}
+                      barCategoryGap="20%"
+                    >
+                      <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#e2e8f0" />
+                      <XAxis type="number" allowDecimals={false} tick={{ fontSize: 10 }} />
+                      <YAxis
+                        type="category"
+                        dataKey="department"
+                        tick={{ fontSize: 10 }}
+                        width={120}
+                        tickFormatter={(value: string) =>
+                          value.length > 16 ? `${value.slice(0, 15)}…` : value
+                        }
+                      />
+                      <Tooltip cursor={{ fill: "rgba(43,108,243,0.06)" }} />
+                      <Bar dataKey="documents" fill={BRAND} radius={[0, 4, 4, 0]} maxBarSize={18} />
+                    </BarChart>
+                  </ResponsiveContainer>
+                </div>
+              );
+            })()
           )}
         </section>
 
