@@ -9,11 +9,14 @@ import { z } from "zod";
  * anything the admin side ever handles.
  */
 
-/** Drive/Docs ids are URL-safe base64-ish strings, typically 25-70 chars. */
+/**
+ * The browser sends the stable library node id (`d:<Drive id>`), not the raw
+ * Drive id. The prefix distinguishes linked documents from path-based folders.
+ */
 export const driveFileIdSchema = z
   .string()
   .trim()
-  .regex(/^[A-Za-z0-9_-]{10,80}$/, "Not a valid Google Drive file id");
+  .regex(/^d:[A-Za-z0-9_-]{10,80}$/, "Not a valid Document Library document id");
 
 export const askDocumentSchema = z.object({
   driveFileId: driveFileIdSchema,
