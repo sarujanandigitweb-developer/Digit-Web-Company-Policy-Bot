@@ -58,6 +58,7 @@
     "framer-motion": "^12.42.2",
     "input-otp": "^1.4.2",
     "jose": "^6.2.3",
+    "jszip": "^3.7.1",
     "lucide-react": "^0.575.0",
     "mammoth": "^1.12.0",
     "nodemailer": "^9.0.3",

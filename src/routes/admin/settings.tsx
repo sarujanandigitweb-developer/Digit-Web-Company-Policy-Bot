@@ -32,6 +32,7 @@ interface Settings {
   };
   providers: Array<{ id: string; model: string; configured: boolean; order: number }>;
   queue: { processing: number; failed: number; stalled: number };
+  retention: { days: number; basis: string; cron_secret_configured: boolean };
   runtime: { node: string; environment: string };
 }
 
@@ -138,6 +139,22 @@ function SettingsPage() {
                 </div>
               ))}
             </div>
+          </Section>
+
+          <Section title="Conversation retention" className="lg:col-span-2">
+            <Row label="Retention period" value={`${settings.data!.retention.days} days`} />
+            <Row label="Age measured from" value={settings.data!.retention.basis} />
+            <Row
+              label="Cleanup schedule"
+              value="Daily (00:00 UTC)"
+              hint="Requires the production cron deployment."
+            />
+            <Row
+              label="Cron secret"
+              value={
+                settings.data!.retention.cron_secret_configured ? "Configured" : "Not configured"
+              }
+            />
           </Section>
 
           <Section title="Runtime" className="lg:col-span-2">

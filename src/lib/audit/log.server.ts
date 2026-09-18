@@ -37,7 +37,10 @@ export type AuditAction =
   | "conversation.deleted";
 
 export interface AuditEntry {
-  actor: Pick<SessionUser, "userId">;
+  /** null actor records a system-triggered action (e.g. the scheduled
+   *  conversation retention purge) — there is no signed-in user to attribute
+   *  it to, but the action still belongs in the same trail as a manual one. */
+  actor: { userId: string | null } | Pick<SessionUser, "userId">;
   action: AuditAction;
   table: string;
   recordId: string;

@@ -79,6 +79,36 @@ export async function deleteMany(
   });
 }
 
+/** Retention is measured from session creation, matching the Conversations date filter. */
+export const CONVERSATION_RETENTION_DAYS = 7;
+
+/** The delete and its system audit entry either both commit or both roll back.
+ * Existing foreign keys cascade messages/citations/feedback and preserve gaps/logs.
+ * Database time gives every invocation one consistent cutoff; repeating is safe.
+ */
+export async function purgeOlderThan(): Promise<{ deleted: number; cutoff: string }> {
+  return withTransaction(async (tx) => {
+    const { rows: cutoffs } = await tx.query(
+      `SELECT now() - ($1::int * interval '1 day') AS cutoff`,
+      [CONVERSATION_RETENTION_DAYS],
+    );
+    const cutoff = new Date(cutoffs[0].cutoff).toISOString();
+    const { rows } = await tx.query(
+      `DELETE FROM chat_sessions WHERE started_at < $1::timestamptz RETURNING id`,
+      [cutoff],
+    );
+    await writeAudit(tx, {
+      actor: { userId: null },
+      action: "conversation.deleted",
+      table: "chat_sessions",
+      recordId: "conversation-retention",
+      oldValue: { count: rows.length, ids: rows.map((row) => row.id) },
+      newValue: { source: "retention", retentionDays: CONVERSATION_RETENTION_DAYS, cutoff },
+    });
+    return { deleted: rows.length, cutoff };
+  });
+}
+
 export async function list(
   query: ListConversationsQuery,
 ): Promise<{ items: ConversationSummary[]; total: number }> {

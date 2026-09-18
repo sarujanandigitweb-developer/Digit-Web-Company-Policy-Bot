@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as LoginRouteImport } from './routes/login'
+import { Route as LibraryRouteImport } from './routes/library'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
@@ -26,6 +27,9 @@ import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
 import { Route as AdminKnowledgeIndexRouteImport } from './routes/admin/knowledge.index'
 import { Route as AdminConversationsIndexRouteImport } from './routes/admin/conversations.index'
+import { Route as ApiLibraryTreeRouteImport } from './routes/api/library.tree'
+import { Route as ApiLibraryAskRouteImport } from './routes/api/library.ask'
+import { Route as ApiCronConversationsRouteImport } from './routes/api/cron.conversations'
 import { Route as ApiChatIntentRouteImport } from './routes/api/chat.intent'
 import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
 import { Route as ApiAdminSettingsRouteImport } from './routes/api/admin/settings'
@@ -36,6 +40,8 @@ import { Route as ApiAdminConversationsRouteImport } from './routes/api/admin/co
 import { Route as ApiAdminActivityRouteImport } from './routes/api/admin/activity'
 import { Route as AdminKnowledgeIdRouteImport } from './routes/admin/knowledge.$id'
 import { Route as AdminConversationsIdRouteImport } from './routes/admin/conversations.$id'
+import { Route as ApiLibraryFileIdRouteImport } from './routes/api/library.file.$id'
+import { Route as ApiLibraryDocumentIdRouteImport } from './routes/api/library.document.$id'
 import { Route as ApiAuthResetVerifyRouteImport } from './routes/api/auth/reset.verify'
 import { Route as ApiAuthResetSendRouteImport } from './routes/api/auth/reset.send'
 import { Route as ApiAuthResetConfirmRouteImport } from './routes/api/auth/reset.confirm'
@@ -60,6 +66,11 @@ import { Route as ApiAdminKnowledgeIdChunksRouteImport } from './routes/api/admi
 const LoginRoute = LoginRouteImport.update({
   id: '/login',
   path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
@@ -142,6 +153,21 @@ const AdminConversationsIndexRoute = AdminConversationsIndexRouteImport.update({
   path: '/conversations/',
   getParentRoute: () => AdminRoute,
 } as any)
+const ApiLibraryTreeRoute = ApiLibraryTreeRouteImport.update({
+  id: '/api/library/tree',
+  path: '/api/library/tree',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLibraryAskRoute = ApiLibraryAskRouteImport.update({
+  id: '/api/library/ask',
+  path: '/api/library/ask',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronConversationsRoute = ApiCronConversationsRouteImport.update({
+  id: '/api/cron/conversations',
+  path: '/api/cron/conversations',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiChatIntentRoute = ApiChatIntentRouteImport.update({
   id: '/intent',
   path: '/intent',
@@ -191,6 +217,16 @@ const AdminConversationsIdRoute = AdminConversationsIdRouteImport.update({
   id: '/conversations/$id',
   path: '/conversations/$id',
   getParentRoute: () => AdminRoute,
+} as any)
+const ApiLibraryFileIdRoute = ApiLibraryFileIdRouteImport.update({
+  id: '/api/library/file/$id',
+  path: '/api/library/file/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLibraryDocumentIdRoute = ApiLibraryDocumentIdRouteImport.update({
+  id: '/api/library/document/$id',
+  path: '/api/library/document/$id',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthResetVerifyRoute = ApiAuthResetVerifyRouteImport.update({
   id: '/api/auth/reset/verify',
@@ -302,6 +338,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
+  '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -324,6 +361,9 @@ export interface FileRoutesByFullPath {
   '/api/admin/settings': typeof ApiAdminSettingsRoute
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
   '/api/chat/intent': typeof ApiChatIntentRoute
+  '/api/cron/conversations': typeof ApiCronConversationsRoute
+  '/api/library/ask': typeof ApiLibraryAskRoute
+  '/api/library/tree': typeof ApiLibraryTreeRoute
   '/admin/conversations/': typeof AdminConversationsIndexRoute
   '/admin/knowledge/': typeof AdminKnowledgeIndexRoute
   '/api/admin/analytics/knowledge': typeof ApiAdminAnalyticsKnowledgeRoute
@@ -343,6 +383,8 @@ export interface FileRoutesByFullPath {
   '/api/auth/reset/confirm': typeof ApiAuthResetConfirmRoute
   '/api/auth/reset/send': typeof ApiAuthResetSendRoute
   '/api/auth/reset/verify': typeof ApiAuthResetVerifyRoute
+  '/api/library/document/$id': typeof ApiLibraryDocumentIdRoute
+  '/api/library/file/$id': typeof ApiLibraryFileIdRoute
   '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
   '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
   '/api/admin/library/resources/$id': typeof ApiAdminLibraryResourcesIdRoute
@@ -350,6 +392,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/forgot-password': typeof ForgotPasswordRoute
+  '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -372,6 +415,9 @@ export interface FileRoutesByTo {
   '/api/admin/settings': typeof ApiAdminSettingsRoute
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
   '/api/chat/intent': typeof ApiChatIntentRoute
+  '/api/cron/conversations': typeof ApiCronConversationsRoute
+  '/api/library/ask': typeof ApiLibraryAskRoute
+  '/api/library/tree': typeof ApiLibraryTreeRoute
   '/admin/conversations': typeof AdminConversationsIndexRoute
   '/admin/knowledge': typeof AdminKnowledgeIndexRoute
   '/api/admin/analytics/knowledge': typeof ApiAdminAnalyticsKnowledgeRoute
@@ -391,6 +437,8 @@ export interface FileRoutesByTo {
   '/api/auth/reset/confirm': typeof ApiAuthResetConfirmRoute
   '/api/auth/reset/send': typeof ApiAuthResetSendRoute
   '/api/auth/reset/verify': typeof ApiAuthResetVerifyRoute
+  '/api/library/document/$id': typeof ApiLibraryDocumentIdRoute
+  '/api/library/file/$id': typeof ApiLibraryFileIdRoute
   '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
   '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
   '/api/admin/library/resources/$id': typeof ApiAdminLibraryResourcesIdRoute
@@ -400,6 +448,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
   '/forgot-password': typeof ForgotPasswordRoute
+  '/library': typeof LibraryRoute
   '/login': typeof LoginRoute
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
@@ -422,6 +471,9 @@ export interface FileRoutesById {
   '/api/admin/settings': typeof ApiAdminSettingsRoute
   '/api/admin/users': typeof ApiAdminUsersRouteWithChildren
   '/api/chat/intent': typeof ApiChatIntentRoute
+  '/api/cron/conversations': typeof ApiCronConversationsRoute
+  '/api/library/ask': typeof ApiLibraryAskRoute
+  '/api/library/tree': typeof ApiLibraryTreeRoute
   '/admin/conversations/': typeof AdminConversationsIndexRoute
   '/admin/knowledge/': typeof AdminKnowledgeIndexRoute
   '/api/admin/analytics/knowledge': typeof ApiAdminAnalyticsKnowledgeRoute
@@ -441,6 +493,8 @@ export interface FileRoutesById {
   '/api/auth/reset/confirm': typeof ApiAuthResetConfirmRoute
   '/api/auth/reset/send': typeof ApiAuthResetSendRoute
   '/api/auth/reset/verify': typeof ApiAuthResetVerifyRoute
+  '/api/library/document/$id': typeof ApiLibraryDocumentIdRoute
+  '/api/library/file/$id': typeof ApiLibraryFileIdRoute
   '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
   '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
   '/api/admin/library/resources/$id': typeof ApiAdminLibraryResourcesIdRoute
@@ -451,6 +505,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/forgot-password'
+    | '/library'
     | '/login'
     | '/admin/analytics'
     | '/admin/departments'
@@ -473,6 +528,9 @@ export interface FileRouteTypes {
     | '/api/admin/settings'
     | '/api/admin/users'
     | '/api/chat/intent'
+    | '/api/cron/conversations'
+    | '/api/library/ask'
+    | '/api/library/tree'
     | '/admin/conversations/'
     | '/admin/knowledge/'
     | '/api/admin/analytics/knowledge'
@@ -492,6 +550,8 @@ export interface FileRouteTypes {
     | '/api/auth/reset/confirm'
     | '/api/auth/reset/send'
     | '/api/auth/reset/verify'
+    | '/api/library/document/$id'
+    | '/api/library/file/$id'
     | '/api/admin/knowledge/$id/chunks'
     | '/api/admin/knowledge/$id/retry'
     | '/api/admin/library/resources/$id'
@@ -499,6 +559,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/forgot-password'
+    | '/library'
     | '/login'
     | '/admin/analytics'
     | '/admin/departments'
@@ -521,6 +582,9 @@ export interface FileRouteTypes {
     | '/api/admin/settings'
     | '/api/admin/users'
     | '/api/chat/intent'
+    | '/api/cron/conversations'
+    | '/api/library/ask'
+    | '/api/library/tree'
     | '/admin/conversations'
     | '/admin/knowledge'
     | '/api/admin/analytics/knowledge'
@@ -540,6 +604,8 @@ export interface FileRouteTypes {
     | '/api/auth/reset/confirm'
     | '/api/auth/reset/send'
     | '/api/auth/reset/verify'
+    | '/api/library/document/$id'
+    | '/api/library/file/$id'
     | '/api/admin/knowledge/$id/chunks'
     | '/api/admin/knowledge/$id/retry'
     | '/api/admin/library/resources/$id'
@@ -548,6 +614,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/forgot-password'
+    | '/library'
     | '/login'
     | '/admin/analytics'
     | '/admin/departments'
@@ -570,6 +637,9 @@ export interface FileRouteTypes {
     | '/api/admin/settings'
     | '/api/admin/users'
     | '/api/chat/intent'
+    | '/api/cron/conversations'
+    | '/api/library/ask'
+    | '/api/library/tree'
     | '/admin/conversations/'
     | '/admin/knowledge/'
     | '/api/admin/analytics/knowledge'
@@ -589,6 +659,8 @@ export interface FileRouteTypes {
     | '/api/auth/reset/confirm'
     | '/api/auth/reset/send'
     | '/api/auth/reset/verify'
+    | '/api/library/document/$id'
+    | '/api/library/file/$id'
     | '/api/admin/knowledge/$id/chunks'
     | '/api/admin/knowledge/$id/retry'
     | '/api/admin/library/resources/$id'
@@ -598,6 +670,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
   ForgotPasswordRoute: typeof ForgotPasswordRoute
+  LibraryRoute: typeof LibraryRoute
   LoginRoute: typeof LoginRoute
   ApiChatRoute: typeof ApiChatRouteWithChildren
   ApiDepartmentsRoute: typeof ApiDepartmentsRoute
@@ -609,6 +682,9 @@ export interface RootRouteChildren {
   ApiAdminKnowledgeRoute: typeof ApiAdminKnowledgeRouteWithChildren
   ApiAdminSettingsRoute: typeof ApiAdminSettingsRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRouteWithChildren
+  ApiCronConversationsRoute: typeof ApiCronConversationsRoute
+  ApiLibraryAskRoute: typeof ApiLibraryAskRoute
+  ApiLibraryTreeRoute: typeof ApiLibraryTreeRoute
   ApiAdminAnalyticsKnowledgeRoute: typeof ApiAdminAnalyticsKnowledgeRoute
   ApiAdminLibraryChatRoute: typeof ApiAdminLibraryChatRoute
   ApiAdminLibraryFoldersRoute: typeof ApiAdminLibraryFoldersRoute
@@ -617,6 +693,8 @@ export interface RootRouteChildren {
   ApiAuthResetConfirmRoute: typeof ApiAuthResetConfirmRoute
   ApiAuthResetSendRoute: typeof ApiAuthResetSendRoute
   ApiAuthResetVerifyRoute: typeof ApiAuthResetVerifyRoute
+  ApiLibraryDocumentIdRoute: typeof ApiLibraryDocumentIdRoute
+  ApiLibraryFileIdRoute: typeof ApiLibraryFileIdRoute
   ApiAdminLibraryResourcesIdRoute: typeof ApiAdminLibraryResourcesIdRoute
 }
 
@@ -627,6 +705,13 @@ declare module '@tanstack/react-router' {
       path: '/login'
       fullPath: '/login'
       preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/forgot-password': {
@@ -741,6 +826,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConversationsIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/api/library/tree': {
+      id: '/api/library/tree'
+      path: '/api/library/tree'
+      fullPath: '/api/library/tree'
+      preLoaderRoute: typeof ApiLibraryTreeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/library/ask': {
+      id: '/api/library/ask'
+      path: '/api/library/ask'
+      fullPath: '/api/library/ask'
+      preLoaderRoute: typeof ApiLibraryAskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/conversations': {
+      id: '/api/cron/conversations'
+      path: '/api/cron/conversations'
+      fullPath: '/api/cron/conversations'
+      preLoaderRoute: typeof ApiCronConversationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/chat/intent': {
       id: '/api/chat/intent'
       path: '/intent'
@@ -810,6 +916,20 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/conversations/$id'
       preLoaderRoute: typeof AdminConversationsIdRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/api/library/file/$id': {
+      id: '/api/library/file/$id'
+      path: '/api/library/file/$id'
+      fullPath: '/api/library/file/$id'
+      preLoaderRoute: typeof ApiLibraryFileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/library/document/$id': {
+      id: '/api/library/document/$id'
+      path: '/api/library/document/$id'
+      fullPath: '/api/library/document/$id'
+      preLoaderRoute: typeof ApiLibraryDocumentIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/api/auth/reset/verify': {
       id: '/api/auth/reset/verify'
@@ -1081,6 +1201,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   ForgotPasswordRoute: ForgotPasswordRoute,
+  LibraryRoute: LibraryRoute,
   LoginRoute: LoginRoute,
   ApiChatRoute: ApiChatRouteWithChildren,
   ApiDepartmentsRoute: ApiDepartmentsRoute,
@@ -1092,6 +1213,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminKnowledgeRoute: ApiAdminKnowledgeRouteWithChildren,
   ApiAdminSettingsRoute: ApiAdminSettingsRoute,
   ApiAdminUsersRoute: ApiAdminUsersRouteWithChildren,
+  ApiCronConversationsRoute: ApiCronConversationsRoute,
+  ApiLibraryAskRoute: ApiLibraryAskRoute,
+  ApiLibraryTreeRoute: ApiLibraryTreeRoute,
   ApiAdminAnalyticsKnowledgeRoute: ApiAdminAnalyticsKnowledgeRoute,
   ApiAdminLibraryChatRoute: ApiAdminLibraryChatRoute,
   ApiAdminLibraryFoldersRoute: ApiAdminLibraryFoldersRoute,
@@ -1100,6 +1224,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthResetConfirmRoute: ApiAuthResetConfirmRoute,
   ApiAuthResetSendRoute: ApiAuthResetSendRoute,
   ApiAuthResetVerifyRoute: ApiAuthResetVerifyRoute,
+  ApiLibraryDocumentIdRoute: ApiLibraryDocumentIdRoute,
+  ApiLibraryFileIdRoute: ApiLibraryFileIdRoute,
   ApiAdminLibraryResourcesIdRoute: ApiAdminLibraryResourcesIdRoute,
 }
 export const routeTree = rootRouteImport

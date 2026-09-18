@@ -1,3 +1,4 @@
+import { CONVERSATION_RETENTION_DAYS } from "@/lib/services/conversations.service";
 import { createFileRoute } from "@tanstack/react-router";
 import { requireAdmin } from "@/lib/auth/session.server";
 import { api } from "@/lib/http/handler";
@@ -53,6 +54,11 @@ export const Route = createFileRoute("/api/admin/settings")({
             order: PROVIDER_CHAIN.indexOf(p) + 1,
           })),
           queue: queue[0],
+          retention: {
+            days: CONVERSATION_RETENTION_DAYS,
+            basis: "Session start time",
+            cron_secret_configured: !!process.env.CRON_SECRET?.trim(),
+          },
           runtime: {
             node: process.version,
             environment: process.env.NODE_ENV ?? "development",

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,6 +18,7 @@ import {
   Building2,
   Check,
   ChevronDown,
+  Library,
 } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -476,6 +477,14 @@ function Header({
             </span>
             <ChevronDown className="h-3 w-3 opacity-60" aria-hidden="true" />
           </button>
+          <Link
+            to="/library"
+            onMouseEnter={onHover}
+            className="hidden items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/85 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40 sm:inline-flex"
+          >
+            <Library className="h-3.5 w-3.5" aria-hidden="true" />
+            Document Library
+          </Link>
           <IconBtn onClick={() => setSound(!sound)} onHover={onHover} label="Toggle sound">
             {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </IconBtn>
