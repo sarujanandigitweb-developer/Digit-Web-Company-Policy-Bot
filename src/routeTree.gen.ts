@@ -20,6 +20,7 @@ import { Route as ApiChatRouteImport } from './routes/api/chat'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminSearchRouteImport } from './routes/admin/search'
+import { Route as AdminLibraryRouteImport } from './routes/admin/library'
 import { Route as AdminKnowledgeGapsRouteImport } from './routes/admin/knowledge-gaps'
 import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
@@ -40,6 +41,9 @@ import { Route as ApiAuthResetSendRouteImport } from './routes/api/auth/reset.se
 import { Route as ApiAuthResetConfirmRouteImport } from './routes/api/auth/reset.confirm'
 import { Route as ApiAdminUsersIdRouteImport } from './routes/api/admin/users.$id'
 import { Route as ApiAdminSystemStatusRouteImport } from './routes/api/admin/system.status'
+import { Route as ApiAdminLibraryTreeRouteImport } from './routes/api/admin/library.tree'
+import { Route as ApiAdminLibraryFoldersRouteImport } from './routes/api/admin/library.folders'
+import { Route as ApiAdminLibraryChatRouteImport } from './routes/api/admin/library.chat'
 import { Route as ApiAdminKnowledgeStatsRouteImport } from './routes/api/admin/knowledge.stats'
 import { Route as ApiAdminKnowledgeSearchRouteImport } from './routes/api/admin/knowledge.search'
 import { Route as ApiAdminKnowledgeIdRouteImport } from './routes/api/admin/knowledge.$id'
@@ -49,6 +53,7 @@ import { Route as ApiAdminDepartmentsIdRouteImport } from './routes/api/admin/de
 import { Route as ApiAdminConversationsBulkDeleteRouteImport } from './routes/api/admin/conversations.bulk-delete'
 import { Route as ApiAdminConversationsIdRouteImport } from './routes/api/admin/conversations.$id'
 import { Route as ApiAdminAnalyticsKnowledgeRouteImport } from './routes/api/admin/analytics.knowledge'
+import { Route as ApiAdminLibraryResourcesIdRouteImport } from './routes/api/admin/library.resources.$id'
 import { Route as ApiAdminKnowledgeIdRetryRouteImport } from './routes/api/admin/knowledge.$id.retry'
 import { Route as ApiAdminKnowledgeIdChunksRouteImport } from './routes/api/admin/knowledge.$id.chunks'
 
@@ -105,6 +110,11 @@ const AdminSettingsRoute = AdminSettingsRouteImport.update({
 const AdminSearchRoute = AdminSearchRouteImport.update({
   id: '/search',
   path: '/search',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminLibraryRoute = AdminLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminKnowledgeGapsRoute = AdminKnowledgeGapsRouteImport.update({
@@ -207,6 +217,21 @@ const ApiAdminSystemStatusRoute = ApiAdminSystemStatusRouteImport.update({
   path: '/api/admin/system/status',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAdminLibraryTreeRoute = ApiAdminLibraryTreeRouteImport.update({
+  id: '/api/admin/library/tree',
+  path: '/api/admin/library/tree',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminLibraryFoldersRoute = ApiAdminLibraryFoldersRouteImport.update({
+  id: '/api/admin/library/folders',
+  path: '/api/admin/library/folders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminLibraryChatRoute = ApiAdminLibraryChatRouteImport.update({
+  id: '/api/admin/library/chat',
+  path: '/api/admin/library/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAdminKnowledgeStatsRoute = ApiAdminKnowledgeStatsRouteImport.update({
   id: '/stats',
   path: '/stats',
@@ -254,6 +279,12 @@ const ApiAdminAnalyticsKnowledgeRoute =
     path: '/api/admin/analytics/knowledge',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ApiAdminLibraryResourcesIdRoute =
+  ApiAdminLibraryResourcesIdRouteImport.update({
+    id: '/api/admin/library/resources/$id',
+    path: '/api/admin/library/resources/$id',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 const ApiAdminKnowledgeIdRetryRoute =
   ApiAdminKnowledgeIdRetryRouteImport.update({
     id: '/retry',
@@ -275,6 +306,7 @@ export interface FileRoutesByFullPath {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/knowledge-gaps': typeof AdminKnowledgeGapsRoute
+  '/admin/library': typeof AdminLibraryRoute
   '/admin/search': typeof AdminSearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -303,6 +335,9 @@ export interface FileRoutesByFullPath {
   '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
   '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
+  '/api/admin/library/chat': typeof ApiAdminLibraryChatRoute
+  '/api/admin/library/folders': typeof ApiAdminLibraryFoldersRoute
+  '/api/admin/library/tree': typeof ApiAdminLibraryTreeRoute
   '/api/admin/system/status': typeof ApiAdminSystemStatusRoute
   '/api/admin/users/$id': typeof ApiAdminUsersIdRoute
   '/api/auth/reset/confirm': typeof ApiAuthResetConfirmRoute
@@ -310,6 +345,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/reset/verify': typeof ApiAuthResetVerifyRoute
   '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
   '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
+  '/api/admin/library/resources/$id': typeof ApiAdminLibraryResourcesIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -318,6 +354,7 @@ export interface FileRoutesByTo {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/knowledge-gaps': typeof AdminKnowledgeGapsRoute
+  '/admin/library': typeof AdminLibraryRoute
   '/admin/search': typeof AdminSearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -346,6 +383,9 @@ export interface FileRoutesByTo {
   '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
   '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
+  '/api/admin/library/chat': typeof ApiAdminLibraryChatRoute
+  '/api/admin/library/folders': typeof ApiAdminLibraryFoldersRoute
+  '/api/admin/library/tree': typeof ApiAdminLibraryTreeRoute
   '/api/admin/system/status': typeof ApiAdminSystemStatusRoute
   '/api/admin/users/$id': typeof ApiAdminUsersIdRoute
   '/api/auth/reset/confirm': typeof ApiAuthResetConfirmRoute
@@ -353,6 +393,7 @@ export interface FileRoutesByTo {
   '/api/auth/reset/verify': typeof ApiAuthResetVerifyRoute
   '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
   '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
+  '/api/admin/library/resources/$id': typeof ApiAdminLibraryResourcesIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -363,6 +404,7 @@ export interface FileRoutesById {
   '/admin/analytics': typeof AdminAnalyticsRoute
   '/admin/departments': typeof AdminDepartmentsRoute
   '/admin/knowledge-gaps': typeof AdminKnowledgeGapsRoute
+  '/admin/library': typeof AdminLibraryRoute
   '/admin/search': typeof AdminSearchRoute
   '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
@@ -391,6 +433,9 @@ export interface FileRoutesById {
   '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
   '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
+  '/api/admin/library/chat': typeof ApiAdminLibraryChatRoute
+  '/api/admin/library/folders': typeof ApiAdminLibraryFoldersRoute
+  '/api/admin/library/tree': typeof ApiAdminLibraryTreeRoute
   '/api/admin/system/status': typeof ApiAdminSystemStatusRoute
   '/api/admin/users/$id': typeof ApiAdminUsersIdRoute
   '/api/auth/reset/confirm': typeof ApiAuthResetConfirmRoute
@@ -398,6 +443,7 @@ export interface FileRoutesById {
   '/api/auth/reset/verify': typeof ApiAuthResetVerifyRoute
   '/api/admin/knowledge/$id/chunks': typeof ApiAdminKnowledgeIdChunksRoute
   '/api/admin/knowledge/$id/retry': typeof ApiAdminKnowledgeIdRetryRoute
+  '/api/admin/library/resources/$id': typeof ApiAdminLibraryResourcesIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -409,6 +455,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/departments'
     | '/admin/knowledge-gaps'
+    | '/admin/library'
     | '/admin/search'
     | '/admin/settings'
     | '/admin/users'
@@ -437,6 +484,9 @@ export interface FileRouteTypes {
     | '/api/admin/knowledge/$id'
     | '/api/admin/knowledge/search'
     | '/api/admin/knowledge/stats'
+    | '/api/admin/library/chat'
+    | '/api/admin/library/folders'
+    | '/api/admin/library/tree'
     | '/api/admin/system/status'
     | '/api/admin/users/$id'
     | '/api/auth/reset/confirm'
@@ -444,6 +494,7 @@ export interface FileRouteTypes {
     | '/api/auth/reset/verify'
     | '/api/admin/knowledge/$id/chunks'
     | '/api/admin/knowledge/$id/retry'
+    | '/api/admin/library/resources/$id'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -452,6 +503,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/departments'
     | '/admin/knowledge-gaps'
+    | '/admin/library'
     | '/admin/search'
     | '/admin/settings'
     | '/admin/users'
@@ -480,6 +532,9 @@ export interface FileRouteTypes {
     | '/api/admin/knowledge/$id'
     | '/api/admin/knowledge/search'
     | '/api/admin/knowledge/stats'
+    | '/api/admin/library/chat'
+    | '/api/admin/library/folders'
+    | '/api/admin/library/tree'
     | '/api/admin/system/status'
     | '/api/admin/users/$id'
     | '/api/auth/reset/confirm'
@@ -487,6 +542,7 @@ export interface FileRouteTypes {
     | '/api/auth/reset/verify'
     | '/api/admin/knowledge/$id/chunks'
     | '/api/admin/knowledge/$id/retry'
+    | '/api/admin/library/resources/$id'
   id:
     | '__root__'
     | '/'
@@ -496,6 +552,7 @@ export interface FileRouteTypes {
     | '/admin/analytics'
     | '/admin/departments'
     | '/admin/knowledge-gaps'
+    | '/admin/library'
     | '/admin/search'
     | '/admin/settings'
     | '/admin/users'
@@ -524,6 +581,9 @@ export interface FileRouteTypes {
     | '/api/admin/knowledge/$id'
     | '/api/admin/knowledge/search'
     | '/api/admin/knowledge/stats'
+    | '/api/admin/library/chat'
+    | '/api/admin/library/folders'
+    | '/api/admin/library/tree'
     | '/api/admin/system/status'
     | '/api/admin/users/$id'
     | '/api/auth/reset/confirm'
@@ -531,6 +591,7 @@ export interface FileRouteTypes {
     | '/api/auth/reset/verify'
     | '/api/admin/knowledge/$id/chunks'
     | '/api/admin/knowledge/$id/retry'
+    | '/api/admin/library/resources/$id'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -549,10 +610,14 @@ export interface RootRouteChildren {
   ApiAdminSettingsRoute: typeof ApiAdminSettingsRoute
   ApiAdminUsersRoute: typeof ApiAdminUsersRouteWithChildren
   ApiAdminAnalyticsKnowledgeRoute: typeof ApiAdminAnalyticsKnowledgeRoute
+  ApiAdminLibraryChatRoute: typeof ApiAdminLibraryChatRoute
+  ApiAdminLibraryFoldersRoute: typeof ApiAdminLibraryFoldersRoute
+  ApiAdminLibraryTreeRoute: typeof ApiAdminLibraryTreeRoute
   ApiAdminSystemStatusRoute: typeof ApiAdminSystemStatusRoute
   ApiAuthResetConfirmRoute: typeof ApiAuthResetConfirmRoute
   ApiAuthResetSendRoute: typeof ApiAuthResetSendRoute
   ApiAuthResetVerifyRoute: typeof ApiAuthResetVerifyRoute
+  ApiAdminLibraryResourcesIdRoute: typeof ApiAdminLibraryResourcesIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -632,6 +697,13 @@ declare module '@tanstack/react-router' {
       path: '/search'
       fullPath: '/admin/search'
       preLoaderRoute: typeof AdminSearchRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/library': {
+      id: '/admin/library'
+      path: '/library'
+      fullPath: '/admin/library'
+      preLoaderRoute: typeof AdminLibraryRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/knowledge-gaps': {
@@ -774,6 +846,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminSystemStatusRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/library/tree': {
+      id: '/api/admin/library/tree'
+      path: '/api/admin/library/tree'
+      fullPath: '/api/admin/library/tree'
+      preLoaderRoute: typeof ApiAdminLibraryTreeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/library/folders': {
+      id: '/api/admin/library/folders'
+      path: '/api/admin/library/folders'
+      fullPath: '/api/admin/library/folders'
+      preLoaderRoute: typeof ApiAdminLibraryFoldersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/library/chat': {
+      id: '/api/admin/library/chat'
+      path: '/api/admin/library/chat'
+      fullPath: '/api/admin/library/chat'
+      preLoaderRoute: typeof ApiAdminLibraryChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/knowledge/stats': {
       id: '/api/admin/knowledge/stats'
       path: '/stats'
@@ -837,6 +930,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminAnalyticsKnowledgeRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/admin/library/resources/$id': {
+      id: '/api/admin/library/resources/$id'
+      path: '/api/admin/library/resources/$id'
+      fullPath: '/api/admin/library/resources/$id'
+      preLoaderRoute: typeof ApiAdminLibraryResourcesIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/admin/knowledge/$id/retry': {
       id: '/api/admin/knowledge/$id/retry'
       path: '/retry'
@@ -858,6 +958,7 @@ interface AdminRouteChildren {
   AdminAnalyticsRoute: typeof AdminAnalyticsRoute
   AdminDepartmentsRoute: typeof AdminDepartmentsRoute
   AdminKnowledgeGapsRoute: typeof AdminKnowledgeGapsRoute
+  AdminLibraryRoute: typeof AdminLibraryRoute
   AdminSearchRoute: typeof AdminSearchRoute
   AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
@@ -872,6 +973,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAnalyticsRoute: AdminAnalyticsRoute,
   AdminDepartmentsRoute: AdminDepartmentsRoute,
   AdminKnowledgeGapsRoute: AdminKnowledgeGapsRoute,
+  AdminLibraryRoute: AdminLibraryRoute,
   AdminSearchRoute: AdminSearchRoute,
   AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
@@ -991,10 +1093,14 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAdminSettingsRoute: ApiAdminSettingsRoute,
   ApiAdminUsersRoute: ApiAdminUsersRouteWithChildren,
   ApiAdminAnalyticsKnowledgeRoute: ApiAdminAnalyticsKnowledgeRoute,
+  ApiAdminLibraryChatRoute: ApiAdminLibraryChatRoute,
+  ApiAdminLibraryFoldersRoute: ApiAdminLibraryFoldersRoute,
+  ApiAdminLibraryTreeRoute: ApiAdminLibraryTreeRoute,
   ApiAdminSystemStatusRoute: ApiAdminSystemStatusRoute,
   ApiAuthResetConfirmRoute: ApiAuthResetConfirmRoute,
   ApiAuthResetSendRoute: ApiAuthResetSendRoute,
   ApiAuthResetVerifyRoute: ApiAuthResetVerifyRoute,
+  ApiAdminLibraryResourcesIdRoute: ApiAdminLibraryResourcesIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

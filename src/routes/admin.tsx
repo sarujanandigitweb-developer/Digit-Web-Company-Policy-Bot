@@ -8,6 +8,7 @@ import {
   FileText,
   KeyRound,
   LayoutDashboard,
+  Library,
   LogOut,
   Menu,
   MessagesSquare,
@@ -56,6 +57,7 @@ export const Route = createFileRoute("/admin")({
 const NAV = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/knowledge", label: "Knowledge", icon: FileText, exact: false },
+  { to: "/admin/library", label: "Knowledge Library", icon: Library, exact: false },
   { to: "/admin/conversations", label: "Conversations", icon: MessagesSquare, exact: false },
   { to: "/admin/knowledge-gaps", label: "Knowledge Gaps", icon: Sparkles, exact: false },
   { to: "/admin/search", label: "Search", icon: Search, exact: false },
@@ -98,6 +100,7 @@ function isActive(pathname: string, to: string, exact: boolean): boolean {
 const CRUMBS: Record<string, string> = {
   "/admin": "Dashboard",
   "/admin/knowledge": "Knowledge",
+  "/admin/library": "Knowledge Library",
   "/admin/conversations": "Conversations",
   "/admin/knowledge-gaps": "Knowledge Gaps",
   "/admin/departments": "Departments",

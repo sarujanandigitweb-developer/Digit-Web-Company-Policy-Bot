@@ -17,8 +17,34 @@ export interface ParsedPage {
 }
 
 export interface ParsedDocument {
+  /** Text only, no inline images. This is what gets chunked and embedded. */
   pages: ParsedPage[];
   pageCount: number | null;
+  /**
+   * The reading copy: the same content with inline images kept, for the
+   * in-app document viewer. Undefined when it would be identical to `pages`.
+   *
+   * These are separate because they answer to different limits. A person
+   * reading a screenshot-heavy method guide needs the screenshots; the
+   * embedding API needs prose and chokes on base64. Storing one string for
+   * both is what put three documents into status='failed' with 0 chunks.
+   */
+  displayPages?: ParsedPage[];
+}
+
+/**
+ * Removes markdown images whose source is an inline data: URI.
+ *
+ * mammoth inlines every embedded image as base64. One LcMA method guide came to
+ * 2.7MB of which 3.2KB was text — the rest was 36 screenshots. Chunking that
+ * produces thousands of chunks of binary that no embedding model can use.
+ *
+ * The whole ![alt](data:…) construct goes, not just the URI, so the text is not
+ * left peppered with empty "![]()". Images referenced by ordinary URLs are kept:
+ * they cost a few characters, not megabytes.
+ */
+export function stripInlineImages(markdown: string): string {
+  return markdown.replace(/!\[[^\]]*\]\(data:[^)]*\)/g, "");
 }
 
 const EXTENSION_TO_TYPE: Record<string, FileType> = {
@@ -81,9 +107,18 @@ async function parseDocx(buffer: Buffer): Promise<ParsedDocument> {
   const mammoth = (await import("mammoth")) as unknown as MammothMarkdown;
   try {
     // Markdown rather than raw text: it keeps "# Heading" markers, which the
-    // chunker uses to attribute chunks to their section.
+    // chunker uses to attribute chunks to their section, and gives the viewer
+    // real headings, lists and tables to render instead of one block of text.
     const { value } = await mammoth.convertToMarkdown({ buffer });
-    return { pages: [{ pageNumber: null, text: value }], pageCount: null };
+    const searchable = stripInlineImages(value);
+    return {
+      pages: [{ pageNumber: null, text: searchable }],
+      pageCount: null,
+      // Only carried when images were actually removed, so a document without
+      // them stores nothing extra.
+      displayPages:
+        searchable.length === value.length ? undefined : [{ pageNumber: null, text: value }],
+    };
   } catch (cause) {
     throw UnprocessableEntity("Could not read this DOCX file", { cause: String(cause) });
   }

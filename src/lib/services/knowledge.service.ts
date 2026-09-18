@@ -35,6 +35,9 @@ export interface KnowledgeDocument {
   page_count: number | null;
   uploaded_by: string | null;
   uploaded_by_name: string | null;
+  /** Knowledge Library location, or null when the document is unfiled. */
+  folder_id: string | null;
+  source_url: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -46,7 +49,7 @@ const DOCUMENT_COLUMNS = `
   d.file_name, d.file_type, d.file_size_bytes, d.checksum, d.version, d.supersedes_id,
   d.status, d.processing_error, d.processing_attempts, d.processing_started_at,
   d.processing_completed_at, d.chunk_count, d.page_count, d.uploaded_by,
-  p.full_name AS uploaded_by_name, d.created_at, d.updated_at,
+  p.full_name AS uploaded_by_name, d.folder_id, d.source_url, d.created_at, d.updated_at,
   (SELECT count(*) FROM knowledge_chunks c
     WHERE c.document_id = d.id AND c.embedding IS NOT NULL)::int AS embedded_count
 `;
@@ -171,6 +174,10 @@ export interface UploadInput {
   departmentId: string;
   /** Set when replacing: the document this supersedes. */
   replacesId?: string;
+  /** Knowledge Library location. Optional — an unfiled document still works. */
+  folderId?: string;
+  /** Link back to the original, for the library's "Open original" button. */
+  sourceUrl?: string;
 }
 
 /**
@@ -223,6 +230,9 @@ export async function upload(
 
   const parsed = await parse(input.buffer, fileType);
   const extractedText = serializePages(parsed.pages);
+  // The reading copy keeps inline images; the searchable copy above does not.
+  // Null when they would be identical — see migration 0010.
+  const displayText = parsed.displayPages ? serializePages(parsed.displayPages) : null;
   if (!extractedText.trim()) {
     throw BadRequest("No readable text found in this file");
   }
@@ -248,8 +258,10 @@ export async function upload(
     const { rows } = await tx.query(
       `INSERT INTO knowledge_documents
          (department_id, title, description, file_name, file_type, file_size_bytes,
-          checksum, extracted_text, page_count, version, supersedes_id, status, uploaded_by)
-       VALUES ($1::uuid,$2,$3,$4,$5::document_file_type,$6,$7,$8,$9,$10,$11::uuid,'processing',$12::uuid)
+          checksum, extracted_text, page_count, version, supersedes_id, status, uploaded_by,
+          folder_id, source_url, display_text)
+       VALUES ($1::uuid,$2,$3,$4,$5::document_file_type,$6,$7,$8,$9,$10,$11::uuid,'processing',$12::uuid,
+               $13::uuid,$14,$15)
        RETURNING id`,
       [
         input.departmentId,
@@ -264,6 +276,9 @@ export async function upload(
         previous ? previous.version + 1 : 1,
         previous?.id ?? null,
         actor.userId,
+        input.folderId ?? null,
+        input.sourceUrl ?? null,
+        displayText,
       ],
     );
     const id = rows[0].id as string;
@@ -347,6 +362,9 @@ export interface UpdateDocumentInput {
   title?: string;
   description?: string | null;
   departmentId?: string;
+  /** null unfiles the document from the Knowledge Library. */
+  folderId?: string | null;
+  sourceUrl?: string | null;
 }
 
 /**
@@ -405,7 +423,12 @@ export async function updateMetadata(
       `UPDATE knowledge_documents SET
          title = COALESCE($2, title),
          description = CASE WHEN $3::bool THEN $4 ELSE description END,
-         department_id = COALESCE($5::uuid, department_id)
+         department_id = COALESCE($5::uuid, department_id),
+         -- Same present-vs-absent dance as description: the caller must be able
+         -- to clear these, so "field omitted" and "field set to null" cannot
+         -- both be expressed as a null parameter.
+         folder_id = CASE WHEN $6::bool THEN $7::uuid ELSE folder_id END,
+         source_url = CASE WHEN $8::bool THEN $9 ELSE source_url END
        WHERE id = $1::uuid
        RETURNING *`,
       [
@@ -414,6 +437,10 @@ export async function updateMetadata(
         Object.prototype.hasOwnProperty.call(input, "description"),
         input.description ?? null,
         input.departmentId ?? null,
+        Object.prototype.hasOwnProperty.call(input, "folderId"),
+        input.folderId ?? null,
+        Object.prototype.hasOwnProperty.call(input, "sourceUrl"),
+        input.sourceUrl ?? null,
       ],
     );
     const after = rows[0] as { department_id: string };

@@ -42,6 +42,16 @@ export interface RetrieveOptions {
   /** Search ONLY shared (company-wide) knowledge — for general questions asked
    *  before any department is chosen. Never touches a specific department. */
   sharedOnly?: boolean;
+  /**
+   * Search ONLY this one document — the Knowledge Library's resource workspace.
+   *
+   * This is the narrowest scope and it overrides every other one: department,
+   * shared and global are all switched off when it is set. There is deliberately
+   * no fallback of any kind. A question the resource cannot answer returns no
+   * rows, and the caller says so, rather than quietly answering from somewhere
+   * the user did not choose.
+   */
+  documentId?: string | null;
   limit?: number;
   /** Blend weight for the vector score; the remainder goes to keyword score. */
   vectorWeight?: number;
@@ -56,13 +66,20 @@ export async function retrieve(options: RetrieveOptions): Promise<RetrievedChunk
   const limit = options.limit ?? DEFAULT_LIMIT;
   const vectorWeight = options.vectorWeight ?? DEFAULT_VECTOR_WEIGHT;
 
-  // Three mutually exclusive scopes, resolved to two booleans and a department:
+  // Four mutually exclusive scopes, resolved to booleans and two ids:
+  //  - document    → exactly one document, nothing else (Knowledge Library)
   //  - global      → no filter (management / explicit "All")
   //  - shared-only → only is_shared departments (general question, no dept yet)
   //  - department  → the selected department OR any shared department
-  const isGlobal = !!options.global;
-  const isSharedOnly = !!options.sharedOnly && !isGlobal;
-  const departmentFilter = isGlobal || isSharedOnly ? null : (options.departmentId ?? null);
+  //
+  // Document scope is resolved first and zeroes the other three, so no caller
+  // can accidentally combine "this resource" with a wider search.
+  const documentFilter = options.documentId ?? null;
+  const isDocumentScoped = documentFilter !== null;
+  const isGlobal = !isDocumentScoped && !!options.global;
+  const isSharedOnly = !isDocumentScoped && !!options.sharedOnly && !isGlobal;
+  const departmentFilter =
+    isDocumentScoped || isGlobal || isSharedOnly ? null : (options.departmentId ?? null);
 
   const embedding = toVectorLiteral(await embedQuery(options.query));
 
@@ -78,10 +95,18 @@ export async function retrieve(options: RetrieveOptions): Promise<RetrievedChunk
         JOIN departments cd ON cd.id = c.department_id
        WHERE d.status = 'active'
          AND c.embedding IS NOT NULL
+         -- Resource scope. Applied HERE, inside the candidate CTE, so it bounds
+         -- the rows before ORDER BY and before LIMIT: the candidate pool is
+         -- drawn from this document alone and a chunk from any other document
+         -- is never ranked, never truncated against, never seen. Filtering after
+         -- the LIMIT would let a neighbouring document push the real answer out
+         -- of the pool. A no-op when the scope is not a resource.
+         AND (${documentFilter}::uuid IS NULL OR c.document_id = ${documentFilter}::uuid)
          -- cd.is_shared is the ONLY cross-department path; no branch here ever
          -- reaches a non-selected, non-shared department.
          AND (
-           ${isGlobal}::bool
+           ${isDocumentScoped}::bool
+           OR ${isGlobal}::bool
            OR (${isSharedOnly}::bool AND cd.is_shared)
            OR (${departmentFilter}::uuid IS NOT NULL
                AND (c.department_id = ${departmentFilter}::uuid OR cd.is_shared))
@@ -100,6 +125,26 @@ export async function retrieve(options: RetrieveOptions): Promise<RetrievedChunk
      ORDER BY score DESC
      LIMIT ${limit}
   `) as RetrievedChunk[];
+}
+
+/**
+ * Retrieval inside one resource, for the Knowledge Library workspace.
+ *
+ * A named entry point rather than a bare `retrieve({ documentId })` call so the
+ * isolation guarantee is greppable and there is exactly one way to ask it: this
+ * signature cannot express a department, a shared bucket or a global sweep, so
+ * a future edit cannot widen the scope by adding an argument at a call site.
+ */
+export async function retrieveWithinResource(options: {
+  query: string;
+  documentId: string;
+  limit?: number;
+}): Promise<RetrievedChunk[]> {
+  return retrieve({
+    query: options.query,
+    documentId: options.documentId,
+    limit: options.limit,
+  });
 }
 
 /**

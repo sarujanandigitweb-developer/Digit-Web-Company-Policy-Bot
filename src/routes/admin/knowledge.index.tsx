@@ -804,6 +804,17 @@ function formatDate(iso: string): string {
   });
 }
 
+// Keep long filenames and library paths inside the panel; only the body scrolls.
+const DOCUMENT_DIALOG =
+  "flex max-h-[calc(100dvh-2rem)] w-[calc(100%-2rem)] min-w-0 flex-col gap-0 overflow-hidden rounded-2xl p-0 sm:max-w-2xl";
+const DOCUMENT_FORM_BODY =
+  "min-h-0 min-w-0 flex-1 space-y-5 overflow-y-auto overscroll-contain px-5 py-5 sm:px-6 [&>div]:min-w-0";
+const DOCUMENT_FORM_FOOTER = "shrink-0 gap-2 border-t bg-muted/30 px-5 py-4 sm:px-6";
+const DOCUMENT_SELECT =
+  "min-w-0 max-w-full gap-2 [&>span]:min-w-0 [&>span]:truncate [&>svg]:shrink-0";
+const DOCUMENT_OPTIONS =
+  "w-[var(--radix-select-trigger-width)] max-h-[min(18rem,var(--radix-select-content-available-height))] max-w-[calc(100vw-2rem)] [&_[role=option]]:whitespace-normal [&_[role=option]]:[overflow-wrap:anywhere]";
+
 function UploadDialog({
   open,
   onOpenChange,
@@ -822,6 +833,10 @@ function UploadDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [departmentId, setDepartmentId] = useState("");
+  // Knowledge Library placement. Both optional: a document with neither still
+  // uploads and is still searchable, it just shows as unfiled in the library.
+  const [folderId, setFolderId] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [progress, setProgress] = useState(0);
   const [isUploading, setUploading] = useState(false);
@@ -829,6 +844,18 @@ function UploadDialog({
 
   const TITLE_MAX = 200;
   const DESC_MAX = 1000;
+  /** Sentinel: Select cannot hold an empty string as a value. */
+  const NO_FOLDER = "__none__";
+
+  // Only fetched while the dialog is open — the list is irrelevant otherwise.
+  const folders = useQuery({
+    queryKey: ["library-folder-options", departmentId],
+    queryFn: () =>
+      api.get<{ items: Array<{ id: string; label: string }> }>(
+        `/api/admin/library/folders?departmentId=${encodeURIComponent(departmentId)}`,
+      ),
+    enabled: open && !!departmentId,
+  });
 
   useEffect(() => {
     if (!open) return;
@@ -836,6 +863,8 @@ function UploadDialog({
     setTitle(replaces?.title ?? "");
     setDescription(replaces?.description ?? "");
     setDepartmentId(replaces?.department_id ?? "");
+    setFolderId(replaces?.folder_id ?? "");
+    setSourceUrl(replaces?.source_url ?? "");
     setError(null);
     setProgress(0);
     setDragging(false);
@@ -871,6 +900,8 @@ function UploadDialog({
     form.append("title", title);
     if (description) form.append("description", description);
     form.append("departmentId", departmentId);
+    if (folderId) form.append("folderId", folderId);
+    if (sourceUrl.trim()) form.append("sourceUrl", sourceUrl.trim());
     if (replaces) form.append("replacesId", replaces.id);
 
     const { getToken } = await import("@/lib/auth/client");
@@ -919,199 +950,280 @@ function UploadDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-lg">
-        <DialogHeader>
+      <DialogContent className={DOCUMENT_DIALOG}>
+        <DialogHeader className="shrink-0 border-b bg-muted/30 px-5 py-5 pr-12 text-left sm:px-6 sm:pr-12">
           <div className="flex items-start gap-3">
             <span className={`shrink-0 rounded-xl p-2.5 ${TONE.blue.bg}`}>
               <UploadCloud className={`h-5 w-5 ${TONE.blue.fg}`} />
             </span>
             <div className="min-w-0">
-              <DialogTitle>
+              <DialogTitle className="break-words leading-snug [overflow-wrap:anywhere]">
                 {replaces ? `Replace “${replaces.title}”` : "Upload document"}
               </DialogTitle>
               <DialogDescription className="mt-0.5">
                 {replaces
                   ? `Uploads v${replaces.version + 1} and archives the current version.`
-                  : "PDF, DOCX, TXT or Markdown. Processing runs in the background."}
+                  : "Add a document to your team’s knowledge base."}
               </DialogDescription>
             </div>
           </div>
         </DialogHeader>
 
-        <form onSubmit={submit} className="min-w-0 space-y-5">
-          {/* Drag-and-drop file zone */}
-          <div className="space-y-1.5">
-            <Label htmlFor="file-input">File</Label>
-            <input
-              id="file-input"
-              type="file"
-              ref={fileRef}
-              accept={ACCEPT}
-              className="sr-only"
-              onChange={(e) => acceptFile(e.target.files?.[0] ?? null)}
-            />
-            <div
-              role="button"
-              tabIndex={0}
-              onClick={() => fileRef.current?.click()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
+        <form onSubmit={submit} className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <div className={DOCUMENT_FORM_BODY}>
+            {/* Drag-and-drop file zone */}
+            <div className="space-y-1.5">
+              <Label htmlFor="file-input">File</Label>
+              <input
+                id="file-input"
+                type="file"
+                ref={fileRef}
+                accept={ACCEPT}
+                className="sr-only"
+                onChange={(e) => acceptFile(e.target.files?.[0] ?? null)}
+              />
+              <div
+                role="button"
+                tabIndex={0}
+                onClick={() => fileRef.current?.click()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    fileRef.current?.click();
+                  }
+                }}
+                onDragOver={(e) => {
                   e.preventDefault();
-                  fileRef.current?.click();
-                }
-              }}
-              onDragOver={(e) => {
-                e.preventDefault();
-                setDragging(true);
-              }}
-              onDragLeave={() => setDragging(false)}
-              onDrop={(e) => {
-                e.preventDefault();
-                setDragging(false);
-                acceptFile(e.dataTransfer.files?.[0] ?? null);
-              }}
-              className={`flex cursor-pointer items-center gap-3 rounded-xl border border-dashed p-3.5 transition ${FOCUS_RING} ${
-                dragging
-                  ? "border-[#2b6cf3] bg-[#2b6cf3]/[0.06]"
-                  : "border-slate-300 hover:border-slate-400 hover:bg-slate-50 dark:border-white/15 dark:hover:border-white/25 dark:hover:bg-white/[0.03]"
-              }`}
-            >
-              <span
-                className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                  file
-                    ? "bg-emerald-500/10 text-emerald-600"
-                    : "bg-slate-100 text-slate-400 dark:bg-white/5"
+                  setDragging(true);
+                }}
+                onDragLeave={() => setDragging(false)}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  setDragging(false);
+                  acceptFile(e.dataTransfer.files?.[0] ?? null);
+                }}
+                className={`flex cursor-pointer flex-wrap items-center gap-3 rounded-xl border-2 border-dashed px-4 py-6 transition ${FOCUS_RING} ${
+                  dragging
+                    ? "border-[#2b6cf3] bg-[#2b6cf3]/[0.06]"
+                    : "border-blue-200 bg-blue-50/40 hover:border-blue-400 hover:bg-blue-50 dark:border-white/15 dark:hover:border-white/25 dark:hover:bg-white/[0.03]"
                 }`}
               >
-                <FileText className="h-5 w-5" />
-              </span>
-              <div className="min-w-0 flex-1">
+                <span
+                  className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
+                    file
+                      ? "bg-emerald-500/10 text-emerald-600"
+                      : "bg-slate-100 text-slate-400 dark:bg-white/5"
+                  }`}
+                >
+                  <FileText className="h-5 w-5" />
+                </span>
+                <div className="min-w-0 flex-1 basis-40">
+                  {file ? (
+                    <>
+                      <p
+                        title={file.name}
+                        className="truncate text-sm font-medium text-slate-800 dark:text-slate-100"
+                      >
+                        {file.name}
+                      </p>
+                      <p className="text-xs text-slate-400">{formatBytes(file.size)}</p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                        Choose a file or drag and drop
+                      </p>
+                      <p className="text-xs text-slate-400">PDF, DOCX, TXT, MD · up to 20 MB</p>
+                    </>
+                  )}
+                </div>
                 {file ? (
-                  <>
-                    <p className="truncate text-sm font-medium text-slate-800 dark:text-slate-100">
-                      {file.name}
-                    </p>
-                    <p className="text-xs text-slate-400">{formatBytes(file.size)}</p>
-                  </>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="h-8 w-8 shrink-0 text-slate-400 hover:text-red-600"
+                    aria-label="Remove file"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setFile(null);
+                      if (fileRef.current) fileRef.current.value = "";
+                    }}
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
                 ) : (
-                  <>
-                    <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                      Choose a file or drag and drop
-                    </p>
-                    <p className="text-xs text-slate-400">PDF, DOCX, TXT, MD · up to 20 MB</p>
-                  </>
+                  <span className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-white/15 dark:text-slate-300">
+                    Browse
+                  </span>
                 )}
               </div>
-              {file ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 shrink-0 text-slate-400 hover:text-red-600"
-                  aria-label="Remove file"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    setFile(null);
-                    if (fileRef.current) fileRef.current.value = "";
-                  }}
-                >
-                  <X className="h-4 w-4" />
-                </Button>
-              ) : (
-                <span className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-white/15 dark:text-slate-300">
-                  Browse
-                </span>
-              )}
             </div>
-          </div>
 
-          {/* Title with counter */}
-          <div className="space-y-1.5">
-            <Label htmlFor="title">
-              Title <span className="text-red-500">*</span>
-            </Label>
-            <Input
-              id="title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              required
-              maxLength={TITLE_MAX}
-              placeholder="Enter a descriptive title for the document"
-            />
-            <p className="text-right text-[11px] tabular-nums text-slate-400">
-              {title.length} / {TITLE_MAX}
-            </p>
-          </div>
-
-          {/* Description with counter */}
-          <div className="space-y-1.5">
-            <Label htmlFor="description">Description (optional)</Label>
-            <Textarea
-              id="description"
-              value={description}
-              onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              maxLength={DESC_MAX}
-              placeholder="Add a short description to help others understand this document"
-            />
-            <p className="text-right text-[11px] tabular-nums text-slate-400">
-              {description.length} / {DESC_MAX}
-            </p>
-          </div>
-
-          <div className="space-y-1.5">
-            <Label htmlFor="dept">
-              Department <span className="text-red-500">*</span>
-            </Label>
-            <Select value={departmentId} onValueChange={setDepartmentId} disabled={!!replaces}>
-              <SelectTrigger id="dept">
-                <SelectValue placeholder="Select a department" />
-              </SelectTrigger>
-              <SelectContent>
-                {departments
-                  .filter((d) => d.status === "active")
-                  .map((d) => (
-                    <SelectItem key={d.id} value={d.id}>
-                      {d.name}
-                    </SelectItem>
-                  ))}
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
-              {replaces
-                ? "A replacement stays in the original department."
-                : "The document will be searchable within the selected department."}
-            </p>
-          </div>
-
-          {isUploading && (
+            {/* Title with counter */}
             <div className="space-y-1.5">
-              <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-                <div
-                  className="h-full rounded-full transition-all"
-                  style={{ width: `${progress}%`, background: BRAND }}
-                  role="progressbar"
-                  aria-valuenow={progress}
-                  aria-valuemin={0}
-                  aria-valuemax={100}
-                />
-              </div>
-              <p className="text-xs text-slate-500 tabular-nums dark:text-slate-400">
-                {progress < 100 ? `Uploading ${progress}%` : "Queuing…"}
+              <Label htmlFor="title">
+                Title <span className="text-red-500">*</span>
+              </Label>
+              <Input
+                id="title"
+                value={title}
+                onChange={(e) => setTitle(e.target.value)}
+                required
+                maxLength={TITLE_MAX}
+                placeholder="Enter a descriptive title for the document"
+              />
+              <p className="text-right text-[11px] tabular-nums text-slate-400">
+                {title.length} / {TITLE_MAX}
               </p>
             </div>
-          )}
 
-          {error && (
-            <p
-              role="alert"
-              className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
-            >
-              {error}
+            {/* Description with counter */}
+            <div className="space-y-1.5">
+              <Label htmlFor="description">Description (optional)</Label>
+              <Textarea
+                id="description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={3}
+                className="min-w-0 resize-y"
+                maxLength={DESC_MAX}
+                placeholder="Add a short description to help others understand this document"
+              />
+              <p className="text-right text-[11px] tabular-nums text-slate-400">
+                {description.length} / {DESC_MAX}
+              </p>
+            </div>
+
+            <div className="grid min-w-0 gap-5 sm:grid-cols-2">
+              <div className="min-w-0 space-y-1.5">
+                <Label htmlFor="dept">
+                  Department <span className="text-red-500">*</span>
+                </Label>
+                <Select
+                  value={departmentId}
+                  onValueChange={(value) => {
+                    setDepartmentId(value);
+                    setFolderId("");
+                  }}
+                  disabled={!!replaces}
+                >
+                  <SelectTrigger id="dept" className={DOCUMENT_SELECT}>
+                    <SelectValue placeholder="Select a department" />
+                  </SelectTrigger>
+                  <SelectContent className={DOCUMENT_OPTIONS}>
+                    {departments
+                      .filter((d) => d.status === "active")
+                      .map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {replaces
+                    ? "A replacement stays in the original department."
+                    : "The document will be searchable within the selected department."}
+                </p>
+              </div>
+
+              <div className="min-w-0 space-y-1.5">
+                <Label htmlFor="folder">Knowledge Library location</Label>
+                <Select
+                  value={folderId || NO_FOLDER}
+                  disabled={!departmentId || folders.isPending || folders.isError}
+                  onValueChange={(v) => setFolderId(v === NO_FOLDER ? "" : v)}
+                >
+                  <SelectTrigger
+                    id="folder"
+                    className={DOCUMENT_SELECT}
+                    title={folders.data?.items.find((folder) => folder.id === folderId)?.label}
+                  >
+                    <SelectValue placeholder="Not filed">
+                      {folders.data?.items.find((folder) => folder.id === folderId)?.label ??
+                        "Not filed"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className={DOCUMENT_OPTIONS}>
+                    <SelectItem value={NO_FOLDER}>Not filed</SelectItem>
+                    {(folders.data?.items ?? []).map((f) => (
+                      <SelectItem
+                        key={f.id}
+                        value={f.id}
+                        textValue={f.label}
+                        title={f.label}
+                        className="items-start py-2 [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1"
+                      >
+                        <span className="block truncate font-medium">
+                          {f.label.split(" / ").at(-1)}
+                        </span>
+                        {f.label.includes(" / ") && (
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            {f.label.split(" / ").slice(0, -1).join(" / ")}
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  {folders.isError
+                    ? "Could not load locations. Close and reopen this dialog to retry."
+                    : !departmentId
+                      ? "Choose a department to see its library locations."
+                      : folders.data?.items.length === 0
+                        ? "No library locations for this department. You can upload without filing."
+                        : "Optional. Showing locations for the selected department."}
+                </p>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="sourceUrl">Link to the original</Label>
+              <Input
+                id="sourceUrl"
+                type="url"
+                inputMode="url"
+                value={sourceUrl}
+                onChange={(e) => setSourceUrl(e.target.value)}
+                placeholder="https://…"
+              />
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Optional. Shown as an “Open original” button on the resource.
+              </p>
+            </div>
+
+            {isUploading && (
+              <div className="space-y-1.5">
+                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+                  <div
+                    className="h-full rounded-full transition-all"
+                    style={{ width: `${progress}%`, background: BRAND }}
+                    role="progressbar"
+                    aria-valuenow={progress}
+                    aria-valuemin={0}
+                    aria-valuemax={100}
+                  />
+                </div>
+                <p className="text-xs text-slate-500 tabular-nums dark:text-slate-400">
+                  {progress < 100 ? `Uploading ${progress}%` : "Queuing…"}
+                </p>
+              </div>
+            )}
+
+            {error && (
+              <p
+                role="alert"
+                className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
+              >
+                {error}
+              </p>
+            )}
+          </div>
+          <DialogFooter className={DOCUMENT_FORM_FOOTER}>
+            <p className="mr-auto self-center text-xs text-muted-foreground">
+              Processing starts after upload.
             </p>
-          )}
-
-          <DialogFooter className="gap-2 border-t border-slate-100 pt-4 dark:border-white/[0.06]">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
@@ -1156,14 +1268,31 @@ function EditDocumentDialog({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [departmentId, setDepartmentId] = useState("");
+  // Editable here as well as at upload, so a document added before the library
+  // existed can be filed without re-uploading it (which the duplicate-file
+  // check would refuse anyway).
+  const [folderId, setFolderId] = useState("");
+  const [sourceUrl, setSourceUrl] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const NO_FOLDER = "__none__";
+
+  const folders = useQuery({
+    queryKey: ["library-folder-options", departmentId],
+    queryFn: () =>
+      api.get<{ items: Array<{ id: string; label: string }> }>(
+        `/api/admin/library/folders?departmentId=${encodeURIComponent(departmentId)}`,
+      ),
+    enabled: !!document && !!departmentId,
+  });
 
   useEffect(() => {
     if (!document) return;
     setTitle(document.title);
     setDescription(document.description ?? "");
     setDepartmentId(document.department_id);
+    setFolderId(document.folder_id ?? "");
+    setSourceUrl(document.source_url ?? "");
     setFieldErrors({});
     setFormError(null);
   }, [document]);
@@ -1174,6 +1303,8 @@ function EditDocumentDialog({
         title: title.trim(),
         description: description.trim() || null,
         departmentId,
+        folderId: folderId || null,
+        sourceUrl: sourceUrl.trim() || null,
       }),
     onSuccess: () => {
       toast.success("Document updated");
@@ -1193,18 +1324,17 @@ function EditDocumentDialog({
 
   return (
     <Dialog open={!!document} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className={DOCUMENT_DIALOG}>
+        <DialogHeader className="shrink-0 border-b bg-muted/30 px-5 py-5 pr-12 text-left sm:px-6 sm:pr-12">
           <DialogTitle>Edit document</DialogTitle>
           <DialogDescription>
-            Update the title, description or department. The file and its processed content are
-            unchanged.
+            Update document details and organize its place in the Knowledge Library.
           </DialogDescription>
         </DialogHeader>
 
         {document && (
           <form
-            className="space-y-4"
+            className="flex min-h-0 min-w-0 flex-1 flex-col"
             onSubmit={(e) => {
               e.preventDefault();
               setFieldErrors({});
@@ -1212,72 +1342,138 @@ function EditDocumentDialog({
               mutation.mutate();
             }}
           >
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-title">Title</Label>
-              <Input
-                id="edit-title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                maxLength={200}
-              />
-              {fieldErrors.title && (
-                <p className="text-xs text-red-600" role="alert">
-                  {fieldErrors.title}
+            <div className={DOCUMENT_FORM_BODY}>
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-title">Title</Label>
+                <Input
+                  id="edit-title"
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  required
+                  maxLength={200}
+                />
+                {fieldErrors.title && (
+                  <p className="text-xs text-red-600" role="alert">
+                    {fieldErrors.title}
+                  </p>
+                )}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-desc">Description</Label>
+                <Textarea
+                  id="edit-desc"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  rows={3}
+                  className="min-w-0 resize-y"
+                  maxLength={1000}
+                  placeholder="What this document covers…"
+                />
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-dept">Department</Label>
+                <Select
+                  value={departmentId}
+                  onValueChange={(value) => {
+                    setDepartmentId(value);
+                    setFolderId("");
+                  }}
+                >
+                  <SelectTrigger id="edit-dept" className={DOCUMENT_SELECT}>
+                    <SelectValue placeholder="Select a department" />
+                  </SelectTrigger>
+                  <SelectContent className={DOCUMENT_OPTIONS}>
+                    {departments
+                      .filter((d) => d.status === "active" || d.id === document.department_id)
+                      .map((d) => (
+                        <SelectItem key={d.id} value={d.id}>
+                          {d.name}
+                        </SelectItem>
+                      ))}
+                  </SelectContent>
+                </Select>
+                {fieldErrors.departmentId ? (
+                  <p className="text-xs text-red-600" role="alert">
+                    {fieldErrors.departmentId}
+                  </p>
+                ) : movingDepartment ? (
+                  <p className="text-xs text-amber-600 dark:text-amber-400">
+                    Moving this document re-files its {document.chunk_count} chunks into the new
+                    department.
+                  </p>
+                ) : null}
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-folder">Knowledge Library location</Label>
+                <Select
+                  value={folderId || NO_FOLDER}
+                  disabled={!departmentId || folders.isPending || folders.isError}
+                  onValueChange={(v) => setFolderId(v === NO_FOLDER ? "" : v)}
+                >
+                  <SelectTrigger
+                    id="edit-folder"
+                    className={DOCUMENT_SELECT}
+                    title={folders.data?.items.find((folder) => folder.id === folderId)?.label}
+                  >
+                    <SelectValue placeholder="Not filed">
+                      {folders.data?.items.find((folder) => folder.id === folderId)?.label ??
+                        "Not filed"}
+                    </SelectValue>
+                  </SelectTrigger>
+                  <SelectContent className={DOCUMENT_OPTIONS}>
+                    <SelectItem value={NO_FOLDER}>Not filed</SelectItem>
+                    {(folders.data?.items ?? []).map((f) => (
+                      <SelectItem
+                        key={f.id}
+                        value={f.id}
+                        textValue={f.label}
+                        title={f.label}
+                        className="items-start py-2 [&>span:last-child]:min-w-0 [&>span:last-child]:flex-1"
+                      >
+                        <span className="block truncate font-medium">
+                          {f.label.split(" / ").at(-1)}
+                        </span>
+                        {f.label.includes(" / ") && (
+                          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
+                            {f.label.split(" / ").slice(0, -1).join(" / ")}
+                          </span>
+                        )}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <Label htmlFor="edit-source">Link to the original</Label>
+                <Input
+                  id="edit-source"
+                  type="url"
+                  inputMode="url"
+                  value={sourceUrl}
+                  onChange={(e) => setSourceUrl(e.target.value)}
+                  placeholder="https://…"
+                />
+                {fieldErrors.sourceUrl && (
+                  <p className="text-xs text-red-600" role="alert">
+                    {fieldErrors.sourceUrl}
+                  </p>
+                )}
+              </div>
+
+              {formError && (
+                <p
+                  role="alert"
+                  className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
+                >
+                  {formError}
                 </p>
               )}
             </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-desc">Description</Label>
-              <Textarea
-                id="edit-desc"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                maxLength={1000}
-                placeholder="What this document covers…"
-              />
-            </div>
-
-            <div className="space-y-1.5">
-              <Label htmlFor="edit-dept">Department</Label>
-              <Select value={departmentId} onValueChange={setDepartmentId}>
-                <SelectTrigger id="edit-dept">
-                  <SelectValue placeholder="Select a department" />
-                </SelectTrigger>
-                <SelectContent>
-                  {departments
-                    .filter((d) => d.status === "active" || d.id === document.department_id)
-                    .map((d) => (
-                      <SelectItem key={d.id} value={d.id}>
-                        {d.name}
-                      </SelectItem>
-                    ))}
-                </SelectContent>
-              </Select>
-              {fieldErrors.departmentId ? (
-                <p className="text-xs text-red-600" role="alert">
-                  {fieldErrors.departmentId}
-                </p>
-              ) : movingDepartment ? (
-                <p className="text-xs text-amber-600 dark:text-amber-400">
-                  Moving this document re-files its {document.chunk_count} chunks into the new
-                  department.
-                </p>
-              ) : null}
-            </div>
-
-            {formError && (
-              <p
-                role="alert"
-                className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700 dark:border-red-900/40 dark:bg-red-950/40 dark:text-red-300"
-              >
-                {formError}
-              </p>
-            )}
-
-            <DialogFooter>
+            <DialogFooter className={DOCUMENT_FORM_FOOTER}>
               <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
                 Cancel
               </Button>

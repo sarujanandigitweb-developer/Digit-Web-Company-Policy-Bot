@@ -35,7 +35,7 @@ export interface FollowupData {
   lowConfidence: boolean;
 }
 
-function levelFor(confidence: number): ConfidenceLevel {
+export function levelFor(confidence: number): ConfidenceLevel {
   if (confidence >= 0.6) return "high";
   if (confidence >= CONFIDENCE_FLOOR) return "medium";
   return "low";
@@ -70,7 +70,7 @@ function isTopicPhrase(t: string): boolean {
  * Distinct topic phrases from the chunks, most-relevant first. Headings are the
  * best signal; where a chunk has no usable heading, the document title stands in.
  */
-function topics(chunks: RetrievedChunk[]): string[] {
+export function topics(chunks: RetrievedChunk[]): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   for (const chunk of chunks) {
@@ -93,7 +93,7 @@ function topics(chunks: RetrievedChunk[]): string[] {
  * cannot invent a topic that was not retrieved. Questions are kept under 80
  * characters and phrased against the actual heading text.
  */
-function suggestionsFor(chunks: RetrievedChunk[]): string[] {
+export function suggestionsFor(chunks: RetrievedChunk[]): string[] {
   const out: string[] = [];
   const push = (q: string) => {
     if (q.length <= 80 && !out.includes(q)) out.push(q);

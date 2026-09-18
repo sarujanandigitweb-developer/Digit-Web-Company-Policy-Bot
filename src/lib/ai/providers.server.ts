@@ -2,7 +2,7 @@ import { createGoogleGenerativeAI } from "@ai-sdk/google";
 import { createOpenAICompatible } from "@ai-sdk/openai-compatible";
 import type { LanguageModel } from "ai";
 
-export type ProviderId = "lovable" | "gemini" | "groq" | "openrouter";
+export type ProviderId = "lovable" | "gemini" | "groq" | "openrouter" | "qwen";
 
 export interface ProviderDefinition {
   id: ProviderId;
@@ -23,9 +23,9 @@ export interface ProviderDefinition {
  * direct Google key remains the local-dev path — and now also the first
  * fallback if the hosted gateway is down.
  *
- * To add a provider, append an entry. Groq and OpenRouter both speak the OpenAI
- * protocol, so they need no extra dependency; anything else OpenAI-compatible
- * only needs its baseURL.
+ * To add a provider, append an entry. Groq, OpenRouter and the self-hosted Qwen
+ * server all speak the OpenAI protocol, so they need no extra dependency;
+ * anything else OpenAI-compatible only needs its baseURL.
  */
 export const PROVIDER_CHAIN: ProviderDefinition[] = [
   {
@@ -70,6 +70,28 @@ export const PROVIDER_CHAIN: ProviderDefinition[] = [
       createOpenAICompatible({
         name: "openrouter",
         baseURL: "https://openrouter.ai/api/v1",
+        headers: { Authorization: `Bearer ${apiKey}` },
+      })(modelId),
+  },
+  {
+    // Self-hosted llama.cpp server. Last on purpose: it is the backstop, not the
+    // default. Everything above is faster or larger, but every one of them can
+    // be taken away without warning — a rotated key, an exhausted free-tier
+    // quota, a retired model id. This one is ours, so when the hosted chain is
+    // having a bad day the assistant still answers.
+    //
+    // Note the context window: 32k, against 262k the weights were trained for.
+    // The retrieval prompt is eight excerpts, so it fits comfortably, but a
+    // future change that inlines whole documents would not.
+    id: "qwen",
+    apiKeyEnv: "QWEN_API_KEY",
+    modelEnv: "QWEN_MODEL",
+    defaultModel: "Qwen3-Next-80B-A3B-Instruct-Q4_K_M.gguf",
+    createModel: (apiKey, modelId) =>
+      createOpenAICompatible({
+        name: "qwen",
+        // Overridable so the host can move without a deploy.
+        baseURL: process.env.QWEN_BASE_URL || "https://qwen3next.severdigitweb.uk/v1",
         headers: { Authorization: `Bearer ${apiKey}` },
       })(modelId),
   },

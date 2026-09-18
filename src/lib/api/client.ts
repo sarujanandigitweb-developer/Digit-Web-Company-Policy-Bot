@@ -137,6 +137,9 @@ export interface KnowledgeDocument {
   embedded_count: number;
   page_count: number | null;
   uploaded_by_name: string | null;
+  /** Knowledge Library location, or null when the document is unfiled. */
+  folder_id: string | null;
+  source_url: string | null;
   created_at: string;
   updated_at: string;
 }

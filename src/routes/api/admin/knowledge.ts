@@ -43,6 +43,10 @@ export const Route = createFileRoute("/api/admin/knowledge")({
           description: form.get("description") ?? undefined,
           departmentId: form.get("departmentId") ?? undefined,
           replacesId: form.get("replacesId") ?? undefined,
+          // Empty strings come from untouched optional form inputs; they must
+          // read as "not provided", not as an invalid uuid/url.
+          folderId: form.get("folderId") || undefined,
+          sourceUrl: form.get("sourceUrl") || undefined,
         });
 
         const document = await knowledge.upload(
@@ -53,6 +57,8 @@ export const Route = createFileRoute("/api/admin/knowledge")({
             description: fields.description,
             departmentId: fields.departmentId,
             replacesId: fields.replacesId,
+            folderId: fields.folderId,
+            sourceUrl: fields.sourceUrl,
           },
           actor,
           request,
