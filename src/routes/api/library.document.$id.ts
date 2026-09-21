@@ -29,7 +29,9 @@ export const Route = createFileRoute("/api/library/document/$id")({
         await requireAuth(ctx.request);
         const id = nodeIdSchema.parse(routeParam(ctx, "id"));
 
-        const resolved = await resolveDocument(id);
+        // The viewer is the only caller that needs the reading copy (with
+        // screenshots); the ask route deliberately does not request it.
+        const resolved = await resolveDocument(id, { display: true });
         if (!resolved) throw NotFound("This document is not available");
         const { node, content, tree } = resolved;
 

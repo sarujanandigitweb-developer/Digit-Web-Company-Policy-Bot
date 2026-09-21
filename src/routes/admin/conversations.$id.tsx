@@ -7,6 +7,7 @@ import { api } from "@/lib/api/client";
 import { CARD, TILE_GRADIENT } from "@/components/admin/theme";
 import { EmptyState, ErrorState, LoadingBlock } from "@/components/admin/states";
 import { ConfidencePill } from "@/components/admin/confidence-pill";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/admin/conversations/$id")({
   component: ConversationDetailPage,
@@ -135,13 +136,7 @@ function AssistantTurn({
 }) {
   return (
     <div className="flex gap-3">
-      <div
-        className="mt-1 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-xs font-black text-white shadow"
-        style={{ background: TILE_GRADIENT }}
-        aria-hidden="true"
-      >
-        D
-      </div>
+      <BrandLogo className="mt-1 h-8 w-8 shadow" />
 
       <div className={`${CARD} min-w-0 flex-1 p-4`}>
         <div className="mb-2 flex flex-wrap items-center gap-2">

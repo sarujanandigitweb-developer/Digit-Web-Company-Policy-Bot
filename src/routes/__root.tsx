@@ -99,7 +99,12 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
         rel: "stylesheet",
         href: appCss,
       },
-      { rel: "icon", href: "/favicon.svg", type: "image/svg+xml" },
+      // The DigitWeb Lanka mark. Browsers pick the best match: the .ico carries
+      // 16/32/48, the PNG is the crisp 32px for modern tabs, and the apple-touch
+      // icon is the opaque 180px iOS uses for home-screen shortcuts.
+      { rel: "icon", href: "/favicon.ico", sizes: "any" },
+      { rel: "icon", href: "/favicon-32.png", type: "image/png", sizes: "32x32" },
+      { rel: "apple-touch-icon", href: "/apple-touch-icon.png" },
     ],
   }),
   shellComponent: RootShell,

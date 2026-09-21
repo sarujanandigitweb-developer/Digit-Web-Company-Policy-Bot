@@ -138,6 +138,7 @@ async function attemptProvider(
   provider: ResolvedProvider,
   system: string,
   messages: UIMessage[],
+  providerOptions?: ProviderOptions,
 ): Promise<Attempt> {
   let capturedError: unknown;
 
@@ -155,6 +156,7 @@ async function attemptProvider(
     system,
     messages: convertToModelMessages(messages),
     maxRetries: MAX_RETRIES_PER_PROVIDER,
+    providerOptions,
     abortSignal: abort.signal,
     // The error chunk carries only a string; this keeps the typed error so we
     // can read its status code.
@@ -192,6 +194,18 @@ async function attemptProvider(
         };
       }
 
+      // When the first-chunk timer aborts a stalled provider, the SDK does not
+      // emit an `error` chunk — it emits `abort`. Left unhandled, `abort` fell
+      // through to the check below as if it were real content, so the gateway
+      // COMMITTED to the dead provider and the browser received an empty answer
+      // after the full timeout instead of the next provider taking over.
+      if (value.type === "abort") {
+        void reader.cancel().catch(() => {});
+        return timedOut
+          ? timeout()
+          : { ok: false, reason: "request aborted before any content", canFallBack: true };
+      }
+
       buffered.push(value);
       if (!PREAMBLE_CHUNK_TYPES.has(value.type)) {
         return { ok: true, stream: replayThenStream(buffered, reader) };
@@ -207,9 +221,18 @@ async function attemptProvider(
   }
 }
 
+/** Derived from streamText itself — `ai` does not export the type by name. */
+type ProviderOptions = NonNullable<Parameters<typeof streamText>[0]["providerOptions"]>;
+
 export interface ChatStreamRequest {
   system: string;
   messages: UIMessage[];
+  /**
+   * Optional, per call. Keyed by provider name (e.g. `google`), so an option
+   * meant for one provider is ignored by the others. Absent for the general
+   * chatbot, which keeps every provider's defaults exactly as before.
+   */
+  providerOptions?: ProviderOptions;
 }
 
 /**
@@ -240,6 +263,7 @@ export async function streamChatWithFallback(req: ChatStreamRequest): Promise<Re
 export async function streamChatBody({
   system,
   messages,
+  providerOptions,
 }: ChatStreamRequest): Promise<ReadableStream<UIMessageChunk>> {
   const chain = resolveProviderChain();
   if (chain.length === 0) throw new NoProvidersConfiguredError();
@@ -247,7 +271,7 @@ export async function streamChatBody({
   const failures: ProviderFailure[] = [];
 
   for (const provider of chain) {
-    const attempt = await attemptProvider(provider, system, messages);
+    const attempt = await attemptProvider(provider, system, messages, providerOptions);
 
     if (attempt.ok) {
       const via = failures.length

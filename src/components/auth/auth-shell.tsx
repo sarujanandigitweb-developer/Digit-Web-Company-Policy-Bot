@@ -1,7 +1,8 @@
 import { motion, useReducedMotion } from "framer-motion";
 import { BarChart3, BookOpen, MessageSquare } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import { CARD, TILE_GRADIENT, TONE } from "@/components/admin/theme";
+import { CARD, TONE } from "@/components/admin/theme";
+import { BrandLogo } from "@/components/brand-logo";
 
 /**
  * The shared visual shell for every unauthenticated page (sign in, forgot
@@ -68,15 +69,11 @@ function BrandPanel({ reduce }: { reduce: boolean }) {
       transition={{ duration: 0.45, ease: "easeOut" }}
       className="hidden lg:block"
     >
-      <div
-        className="flex h-16 w-16 items-center justify-center rounded-2xl text-2xl font-black text-white"
-        style={{
-          background: TILE_GRADIENT,
-          boxShadow: "-4px 8px 20px -4px rgba(21,36,61,0.4), inset 0 1px 0 rgba(255,255,255,0.15)",
-        }}
-      >
-        D
-      </div>
+      <BrandLogo
+        className="h-16 w-16 shadow-[-4px_8px_20px_-4px_rgba(21,36,61,0.4)]"
+        rounded="rounded-2xl"
+        label="DigitWeb Lanka"
+      />
 
       <h1 className="mt-7 text-[44px] font-bold leading-[1.05] tracking-[-0.03em] text-slate-900 dark:text-white">
         Ask the Digit

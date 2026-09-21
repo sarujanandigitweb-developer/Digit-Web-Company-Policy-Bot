@@ -51,7 +51,11 @@ export const PROVIDER_CHAIN: ProviderDefinition[] = [
     id: "groq",
     apiKeyEnv: "GROQ_API_KEY",
     modelEnv: "GROQ_MODEL",
-    defaultModel: "llama-3.3-70b-versatile",
+    // llama-3.3-70b-versatile was retired on this account (HTTP 404 on every
+    // call), which silently turned Groq into a dead hop and sent every
+    // request that reached it on to the self-hosted Qwen (~9 s to first
+    // token) instead. gpt-oss-120b answered the same prompt in ~0.8 s.
+    defaultModel: "openai/gpt-oss-120b",
     createModel: (apiKey, modelId) =>
       createOpenAICompatible({
         name: "groq",

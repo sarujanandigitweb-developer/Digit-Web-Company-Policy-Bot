@@ -6,7 +6,8 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { signIn } from "@/lib/auth/client";
 import { AuthField, AuthShell } from "@/components/auth/auth-shell";
-import { BRAND, FOCUS_RING, TILE_GRADIENT } from "@/components/admin/theme";
+import { BRAND, FOCUS_RING } from "@/components/admin/theme";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/login")({
   component: LoginPage,
@@ -56,12 +57,7 @@ function SignInForm() {
     <>
       {/* Shown on mobile, where the brand panel is hidden. */}
       <div className="mb-6 flex items-center gap-3 lg:hidden">
-        <div
-          className="flex h-10 w-10 items-center justify-center rounded-xl text-lg font-black text-white"
-          style={{ background: TILE_GRADIENT }}
-        >
-          D
-        </div>
+        <BrandLogo className="h-10 w-10" label="DigitWeb Lanka" />
         <span className="text-lg font-semibold tracking-tight text-slate-900 dark:text-white">
           Ask the Digit
         </span>

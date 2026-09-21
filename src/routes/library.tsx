@@ -39,6 +39,8 @@ import {
   TILE_GRADIENT,
   TONE,
 } from "@/components/admin/theme";
+import { BrandLogo } from "@/components/brand-logo";
+import { normalizeAnswer } from "@/lib/format-answer";
 
 export const Route = createFileRoute("/library")({
   component: DocumentLibraryPage,
@@ -95,6 +97,10 @@ function DocumentLibraryPage() {
   const tree = useQuery({
     queryKey: ["doc-library-tree"],
     queryFn: () => authedGet<{ tree: TreeNodeData }>("/api/library/tree"),
+    // The server caches the tree for 10 minutes, so re-asking on every tab
+    // focus can only ever return the same thing.
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const document = useQuery({
@@ -102,6 +108,10 @@ function DocumentLibraryPage() {
     queryFn: () =>
       authedGet<DocumentDetail>(`/api/library/document/${encodeURIComponent(selectedId!)}`),
     enabled: !!selectedId,
+    // A document can carry ~2.5 MB of inline screenshots. With react-query's
+    // defaults, every switch back to this tab re-downloaded all of it.
+    staleTime: 5 * 60 * 1000,
+    refetchOnWindowFocus: false,
   });
 
   const unauthorized = isUnauthorized(tree.error) || isUnauthorized(document.error);
@@ -113,12 +123,7 @@ function DocumentLibraryPage() {
         style={{ background: HEADER_GRADIENT }}
       >
         <div className="flex items-center gap-3">
-          <span
-            className="flex h-11 w-11 items-center justify-center rounded-xl text-xl font-black text-white shadow-lg"
-            style={{ background: TILE_GRADIENT }}
-          >
-            D
-          </span>
+          <BrandLogo className="h-11 w-11 shadow-lg" label="DigitWeb Lanka" />
           <div className="leading-tight">
             <div className="text-[14px] font-semibold text-white">Ask the Digit</div>
             <div className="text-[11px] text-white/60">Document Library</div>
@@ -865,7 +870,7 @@ function AskPanel({
               ) : (
                 <div key={m.id} className={`${SURFACE_SUNK} px-4 py-3`}>
                   <div className="prose prose-sm max-w-none break-words [overflow-wrap:anywhere] text-[13px] leading-[1.7] text-slate-800 dark:prose-invert dark:text-slate-100">
-                    <ReactMarkdown>{messageText(m) || "…"}</ReactMarkdown>
+                    <ReactMarkdown>{normalizeAnswer(messageText(m)) || "…"}</ReactMarkdown>
                   </div>
                   <p className={`mt-2.5 flex items-center gap-1.5 ${TEXT_SUBTLE}`}>
                     <FileText className="h-3 w-3" />

@@ -39,6 +39,7 @@ import {
   TILE_GRADIENT,
   TONE,
 } from "@/components/admin/theme";
+import { normalizeAnswer } from "@/lib/format-answer";
 
 export const Route = createFileRoute("/admin/library")({
   component: KnowledgeLibraryPage,
@@ -1056,7 +1057,7 @@ function AskPanel({ resource }: { resource: ResourceDetail }) {
               ) : (
                 <div key={m.id} className={`${SURFACE_SUNK} px-4 py-3`}>
                   <div className="prose prose-sm max-w-none text-[13px] leading-[1.7] text-slate-800 dark:prose-invert dark:text-slate-100">
-                    <ReactMarkdown>{messageText(m) || "…"}</ReactMarkdown>
+                    <ReactMarkdown>{normalizeAnswer(messageText(m)) || "…"}</ReactMarkdown>
                   </div>
                   <p className={`mt-2.5 flex items-center gap-1.5 ${TEXT_SUBTLE}`}>
                     <FileText className="h-3 w-3" />

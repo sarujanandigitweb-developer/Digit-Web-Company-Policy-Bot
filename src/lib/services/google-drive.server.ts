@@ -34,8 +34,15 @@ export interface DriveDocument {
    * cannot see, so it never reaches the prompt.
    */
   text: string;
-  /** The reading copy: same text WITH inline images, for the viewer. Equal to
-   *  `text` when the document had none. */
+  /**
+   * The reading copy: same text WITH inline images, for the viewer. Only
+   * populated when the caller passed `{ display: true }` — otherwise "".
+   *
+   * Opt-in because it is the expensive half: for a screenshot-heavy SOP it is
+   * ~2.5 MB against ~3.7 KB of AI text, and Postgres is reached over HTTP, so
+   * reading it took 1-5 s (measured). The "Ask this document" path never needs
+   * it, so it must not pay for it on every question.
+   */
   displayText: string;
   /** True once real content was found; false for an empty/unreadable file. */
   ready: boolean;
@@ -120,8 +127,33 @@ async function downloadBytes(link: DriveLink): Promise<{ buffer: Buffer; mimeTyp
   };
 }
 
+/** Replaces each inline (base64) image with "[Screenshot N]" on its own line. */
+function markScreenshots(markdown: string): string {
+  let n = 0;
+  return markdown.replace(/!\[[^\]]*\]\(data:[^)]*\)/g, () => `\n[Screenshot ${++n}]\n`);
+}
+
+/**
+ * How long a Drive modifiedTime is trusted before Drive is asked again.
+ * Without this every question paid a ~400 ms Drive round trip just to
+ * re-confirm a file that had not changed. An edit in Drive is picked up within
+ * this window, which is well inside what a person editing then asking expects.
+ */
+const MODIFIED_TIME_TTL_MS = 60_000;
+
+const modifiedTimeMemo = new Map<string, { value: string | null; at: number }>();
+
 /** Drive's own last-modified time for a file, or null without a service account. */
 async function fetchModifiedTime(link: DriveLink): Promise<string | null> {
+  const memo = modifiedTimeMemo.get(link.id);
+  if (memo && Date.now() - memo.at < MODIFIED_TIME_TTL_MS) return memo.value;
+  const value = await fetchModifiedTimeFromDrive(link);
+  // A failed lookup (null) is not remembered: the next question should retry.
+  if (value !== null) modifiedTimeMemo.set(link.id, { value, at: Date.now() });
+  return value;
+}
+
+async function fetchModifiedTimeFromDrive(link: DriveLink): Promise<string | null> {
   const token = await getDriveAccessToken();
   if (!token) return null;
   const response = await fetch(
@@ -144,11 +176,13 @@ const documentRequests = new Map<string, Promise<DriveDocument>>();
 export async function getDriveDocument(
   link: DriveLink,
   displayName: string,
+  options: { display?: boolean } = {},
 ): Promise<DriveDocument> {
-  const key = JSON.stringify([link.id, displayName]);
+  const display = options.display === true;
+  const key = JSON.stringify([link.id, displayName, display]);
   const existing = documentRequests.get(key);
   if (existing) return existing;
-  const request = loadDriveDocument(link, displayName);
+  const request = loadDriveDocument(link, displayName, display);
   documentRequests.set(key, request);
   try {
     return await request;
@@ -157,10 +191,17 @@ export async function getDriveDocument(
   }
 }
 
-async function loadDriveDocument(link: DriveLink, displayName: string): Promise<DriveDocument> {
+async function loadDriveDocument(
+  link: DriveLink,
+  displayName: string,
+  display: boolean,
+): Promise<DriveDocument> {
   const [cached, modifiedTime] = await Promise.all([
     sql`
-    SELECT modified_time, mime_type, name, extracted_text, display_text, fetched_at
+    SELECT modified_time, mime_type, name, extracted_text, fetched_at,
+           -- CASE keeps the 2.5 MB column out of the response entirely when the
+           -- caller only needs the AI text.
+           CASE WHEN ${display}::bool THEN display_text END AS display_text
       FROM drive_document_cache WHERE drive_file_id = ${link.id}
   ` as unknown as Promise<
       Array<{
@@ -186,7 +227,7 @@ async function loadDriveDocument(link: DriveLink, displayName: string): Promise<
         name: row.name,
         mimeType: row.mime_type,
         text: row.extracted_text,
-        displayText: row.display_text ?? row.extracted_text,
+        displayText: display ? (row.display_text ?? row.extracted_text) : "",
         ready: !!row.extracted_text.trim(),
       };
     }
@@ -202,10 +243,14 @@ async function loadDriveDocument(link: DriveLink, displayName: string): Promise<
   // parse() already strips inline images from `pages` (see parse.server.ts) —
   // that copy is what the AI receives. displayPages, when present, is the
   // same content WITH images, for the viewer.
-  const text = parsed.pages.map((p) => p.text).join("\n\n");
   const displayText = parsed.displayPages
     ? parsed.displayPages.map((p) => p.text).join("\n\n")
-    : text;
+    : parsed.pages.map((p) => p.text).join("\n\n");
+  // The AI copy keeps the POSITION of each screenshot as a numbered marker
+  // instead of dropping it silently. The model still cannot see the image, but
+  // it can now tell which step a screenshot belongs to — without that, "explain
+  // the images" had literally nothing to work from and was refused.
+  const text = parsed.displayPages ? markScreenshots(displayText) : displayText;
 
   await sql`
     INSERT INTO drive_document_cache
@@ -221,7 +266,13 @@ async function loadDriveDocument(link: DriveLink, displayName: string): Promise<
           fetched_at = now()
   `;
 
-  return { name: displayName, mimeType, text, displayText, ready: !!text.trim() };
+  return {
+    name: displayName,
+    mimeType,
+    text,
+    displayText: display ? displayText : "",
+    ready: !!text.trim(),
+  };
 }
 
 /** Raw bytes for a PDF, streamed by our own route rather than redirecting the

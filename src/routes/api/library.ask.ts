@@ -74,7 +74,11 @@ export const Route = createFileRoute("/api/library/ask")({
 
         let modelStream: ReadableStream<UIMessageChunk>;
         try {
-          modelStream = await streamChatBody({ system: context.system, messages });
+          modelStream = await streamChatBody({
+            system: context.system,
+            messages,
+            providerOptions: documentQaProviderOptions(),
+          });
         } catch (e) {
           if (e instanceof AllProvidersFailedError) {
             console.error(`[api/library/ask] ${e.message}`);
@@ -97,6 +101,25 @@ export const Route = createFileRoute("/api/library/ask")({
     },
   },
 });
+
+/**
+ * Gemini 3 "thinks" before answering, and the default budget is enormous for
+ * this job: measured on a document Q&A, 334-863 hidden reasoning tokens to
+ * produce an 11-token answer, taking 4-9 s to the first word. Answering from
+ * text that is already in the prompt needs no deliberation — `minimal` gave the
+ * same answers with the first word in ~1.3 s.
+ *
+ * Only sent when the configured model is a Gemini 3 model. thinkingLevel is a
+ * Gemini 3 setting; an older model rejects it with a 400, and the gateway
+ * treats a 400 as "every provider would reject this" and stops the whole
+ * chain — so an unguarded option would turn a config change into an outage.
+ * Other providers ignore options keyed under `google`.
+ */
+function documentQaProviderOptions() {
+  const model = process.env.GOOGLE_MODEL || "gemini-3-flash-preview";
+  if (!model.startsWith("gemini-3")) return undefined;
+  return { google: { thinkingConfig: { thinkingLevel: "minimal" as const } } };
+}
 
 function latestQuestion(
   messages: Array<{ role: string; parts?: Array<{ type: string; text?: string }> }>,

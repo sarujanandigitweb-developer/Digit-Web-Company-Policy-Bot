@@ -115,7 +115,11 @@ async function expandFolders(root: LibraryNode): Promise<LibraryNode> {
  */
 let treeCache: { tree: LibraryNode; at: number } | null = null;
 let treeRequest: Promise<LibraryNode> | null = null;
-const TREE_CACHE_TTL_MS = 2 * 60 * 1000;
+// Rebuilding costs ~5 s (dozens of Drive folder listings). At 2 minutes, a
+// person asking questions across a short session hit that rebuild, hidden,
+// in front of the AI's answer every couple of minutes. Ten minutes means a
+// document added to Drive shows up within ten minutes, which is the trade.
+const TREE_CACHE_TTL_MS = 10 * 60 * 1000;
 
 /** The full Document Library tree: sheet hierarchy + expanded folder contents. */
 export async function getLibraryTree(): Promise<LibraryNode> {
@@ -155,12 +159,13 @@ export function findNode(root: LibraryNode, id: string): LibraryNode | null {
  */
 export async function resolveDocument(
   nodeId: string,
+  options: { display?: boolean } = {},
 ): Promise<{ node: LibraryNode; content: DriveDocument; tree: LibraryNode } | null> {
   const tree = await getLibraryTree();
   const node = findNode(tree, nodeId);
   if (!node || node.kind !== "document" || !node.link || node.link.kind === "folder") {
     return null;
   }
-  const content = await getDriveDocument(node.link, node.name);
+  const content = await getDriveDocument(node.link, node.name, options);
   return { node, content, tree };
 }

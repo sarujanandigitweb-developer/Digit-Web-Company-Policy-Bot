@@ -20,6 +20,8 @@ import {
   ChevronDown,
   Library,
 } from "lucide-react";
+import { BrandLogo } from "@/components/brand-logo";
+import { normalizeAnswer } from "@/lib/format-answer";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -431,14 +433,10 @@ function Header({
             animate={{ scale: 1, opacity: 1 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
             whileHover={{ rotate: 3, scale: 1.05 }}
-            className="flex h-11 w-11 items-center justify-center rounded-xl text-xl font-black text-white shadow-lg"
-            style={{
-              background: "linear-gradient(135deg, #2b4a82 0%, #15243D 100%)",
-              boxShadow:
-                "0 6px 18px -4px rgba(43,74,130,0.6), inset 0 1px 0 rgba(255,255,255,0.15)",
-            }}
+            className="h-11 w-11 rounded-xl shadow-lg"
+            style={{ boxShadow: "0 6px 18px -4px rgba(43,74,130,0.6)" }}
           >
-            D
+            <BrandLogo className="h-full w-full" label="DigitWeb Lanka" />
           </motion.div>
           <div className="leading-tight">
             <div className="text-[15px] font-semibold tracking-tight text-white sm:text-base">
@@ -615,12 +613,7 @@ function DepartmentPicker({
       animate={{ opacity: 1, y: 0 }}
       className="flex gap-3"
     >
-      <div
-        className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black text-white shadow"
-        style={{ background: `linear-gradient(135deg, #2b4a82 0%, ${BRAND} 100%)` }}
-      >
-        D
-      </div>
+      <BrandLogo className="mt-1 h-9 w-9 shadow" />
       <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900/70">
         <p className="text-sm text-slate-800 dark:text-slate-100">
           {reason === "required" ? (
@@ -804,15 +797,10 @@ function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreami
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="flex gap-3"
     >
-      <div
-        className="mt-1 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-sm font-black text-white shadow"
-        style={{ background: `linear-gradient(135deg, #2b4a82 0%, ${BRAND} 100%)` }}
-      >
-        D
-      </div>
+      <BrandLogo className="mt-1 h-9 w-9 shadow" />
       <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900/70">
         <div className="prose prose-sm max-w-none leading-[1.7] text-slate-800 dark:prose-invert dark:text-slate-100">
-          <ReactMarkdown>{shown || "…"}</ReactMarkdown>
+          <ReactMarkdown>{normalizeAnswer(shown) || "…"}</ReactMarkdown>
           {isStreaming && (
             <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse bg-slate-500 align-middle dark:bg-slate-300" />
           )}

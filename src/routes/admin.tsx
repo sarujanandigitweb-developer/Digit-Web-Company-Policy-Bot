@@ -44,6 +44,7 @@ import {
   TILE_GRADIENT,
 } from "@/components/admin/theme";
 import { LoadingBlock } from "@/components/admin/states";
+import { BrandLogo } from "@/components/brand-logo";
 
 export const Route = createFileRoute("/admin")({
   component: AdminLayout,
@@ -277,12 +278,7 @@ function AdminLayout() {
           </Button>
 
           <Link to="/admin" className={`flex items-center gap-2.5 rounded ${FOCUS_RING}`}>
-            <div
-              className="flex h-9 w-9 items-center justify-center rounded-xl text-sm font-black text-white"
-              style={{ background: TILE_GRADIENT }}
-            >
-              D
-            </div>
+            <BrandLogo className="h-9 w-9" label="DigitWeb Lanka" />
             <span className="hidden leading-tight sm:block">
               <span className="block text-sm font-semibold text-white">Ask the Digit</span>
               <span className="block text-[11px] text-white/50">Admin Console</span>

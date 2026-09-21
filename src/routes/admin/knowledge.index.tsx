@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import {
+  AlertCircle,
   Archive,
   Building2,
   CheckCircle2,
@@ -838,6 +839,34 @@ const DOCUMENT_SELECT =
 const DOCUMENT_OPTIONS =
   "w-[var(--radix-select-trigger-width)] max-h-[min(18rem,var(--radix-select-content-available-height))] max-w-[calc(100vw-2rem)] [&_[role=option]]:whitespace-normal [&_[role=option]]:[overflow-wrap:anywhere]";
 
+/** One file in a batch. Each moves through its own states, so a failure in one
+ *  never stops the others. */
+interface QueuedFile {
+  id: string;
+  file: File;
+  status: "pending" | "uploading" | "done" | "error";
+  progress: number;
+  message?: string;
+}
+
+const SUPPORTED_EXTENSIONS = ["pdf", "docx", "txt", "md", "markdown"];
+const fileKey = (f: File) => `${f.name}:${f.size}:${f.lastModified}`;
+const queue = (file: File): QueuedFile => ({
+  id: fileKey(file),
+  file,
+  status: "pending",
+  progress: 0,
+});
+/** Filename without its extension, capped at the server's 200-character title limit. */
+const titleFromName = (name: string) => (name.replace(/\.[^.]+$/, "") || name).slice(0, 200);
+
+function fileStatusText(item: QueuedFile): string {
+  if (item.status === "uploading")
+    return item.progress < 100 ? `Uploading ${item.progress}%` : "Queuing…";
+  if (item.status === "done") return "Uploaded — processing in the background";
+  return `${formatBytes(item.file.size)} · Ready to upload`;
+}
+
 function UploadDialog({
   open,
   onOpenChange,
@@ -852,7 +881,8 @@ function UploadDialog({
   onUploaded: () => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File | null>(null);
+  // Every selected file is tracked on its own, so one failing never stops the rest.
+  const [files, setFiles] = useState<QueuedFile[]>([]);
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [departmentId, setDepartmentId] = useState("");
@@ -861,8 +891,14 @@ function UploadDialog({
   const [folderId, setFolderId] = useState("");
   const [sourceUrl, setSourceUrl] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [progress, setProgress] = useState(0);
   const [isUploading, setUploading] = useState(false);
+  // Which file of the current run is uploading, for the "2 of 5" line.
+  const [run, setRun] = useState({ index: 0, total: 0 });
+  const stopRef = useRef(false);
+  const xhrRef = useRef<XMLHttpRequest | null>(null);
+  // The title last filled in from a filename, so it can follow the file when the
+  // selection changes but a title the person typed is never overwritten.
+  const autoTitle = useRef("");
   const [dragging, setDragging] = useState(false);
 
   const TITLE_MAX = 200;
@@ -882,97 +918,216 @@ function UploadDialog({
 
   useEffect(() => {
     if (!open) return;
-    setFile(null);
+    setFiles([]);
+    autoTitle.current = "";
+    stopRef.current = false;
     setTitle(replaces?.title ?? "");
     setDescription(replaces?.description ?? "");
     setDepartmentId(replaces?.department_id ?? "");
     setFolderId(replaces?.folder_id ?? "");
     setSourceUrl(replaces?.source_url ?? "");
     setError(null);
-    setProgress(0);
     setDragging(false);
   }, [open, replaces]);
 
-  /** Accepts a chosen or dropped file: validates the extension, then fills the
-   *  title from the filename if the title is still empty. */
-  function acceptFile(f: File | null) {
-    if (!f) return;
-    const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
-    if (!["pdf", "docx", "txt", "md", "markdown"].includes(ext)) {
-      setError("Unsupported file type. Use PDF, DOCX, TXT or Markdown.");
+  // With exactly one file the Title field is shown and pre-filled from its name,
+  // as it always was. With several, titles come from each file's own name.
+  useEffect(() => {
+    if (replaces || files.length !== 1) return;
+    const stem = titleFromName(files[0].file.name);
+    setTitle((t) => (t === "" || t === autoTitle.current ? stem : t));
+    autoTitle.current = stem;
+  }, [files, replaces]);
+
+  const patch = (id: string, change: Partial<QueuedFile>) =>
+    setFiles((prev) => prev.map((f) => (f.id === id ? { ...f, ...change } : f)));
+
+  /**
+   * Accepts chosen or dropped files. Unsupported types are skipped and named, the
+   * rest are added to the list; a file already in the list is not added twice.
+   * A replacement swaps exactly one file, as before.
+   */
+  function acceptFiles(picked: File[]) {
+    if (picked.length === 0 || isUploading) return;
+    const supported: File[] = [];
+    const skipped: string[] = [];
+    for (const f of picked) {
+      const ext = f.name.split(".").pop()?.toLowerCase() ?? "";
+      if (SUPPORTED_EXTENSIONS.includes(ext)) supported.push(f);
+      else skipped.push(f.name);
+    }
+    setError(
+      skipped.length
+        ? `Skipped ${skipped.length === 1 ? "an unsupported file" : `${skipped.length} unsupported files`}: ${skipped.join(", ")}. Use PDF, DOCX, TXT or Markdown.`
+        : null,
+    );
+    if (supported.length === 0) return;
+
+    if (replaces) {
+      setFiles([queue(supported[0])]);
       return;
     }
-    setError(null);
-    setFile(f);
-    setTitle((t) => t || f.name.replace(/\.[^.]+$/, ""));
+    setFiles((prev) => {
+      const seen = new Set(prev.map((q) => q.id));
+      const fresh: QueuedFile[] = [];
+      for (const f of supported) {
+        if (seen.has(fileKey(f))) continue;
+        seen.add(fileKey(f));
+        fresh.push(queue(f));
+      }
+      return [...prev, ...fresh];
+    });
   }
 
   /**
-   * XHR rather than fetch: fetch cannot report upload progress, and a 20MB PDF
-   * over a slow link needs to show something is happening.
+   * Sends ONE file to the existing upload endpoint. XHR rather than fetch: fetch
+   * cannot report upload progress, and a 20MB PDF over a slow link needs to show
+   * something is happening.
+   *
+   * One request per file is what keeps every file independent: each gets its own
+   * duplicate/checksum check, its own extract → chunk → embed run, and its own
+   * error. The server is unchanged.
    */
-  async function submit(event: React.FormEvent) {
-    event.preventDefault();
-    if (!file) return setError("Choose a file to upload");
-    setError(null);
-    setUploading(true);
-    setProgress(0);
-
+  function uploadOne(
+    item: QueuedFile,
+    token: string | null,
+    single: boolean,
+  ): Promise<{ ok: boolean; message?: string; aborted?: boolean }> {
+    if (!token) {
+      return Promise.resolve({
+        ok: false,
+        message: "Your session has expired. Please sign in again.",
+      });
+    }
     const form = new FormData();
-    form.append("file", file);
-    form.append("title", title);
-    if (description) form.append("description", description);
+    form.append("file", item.file);
+    // A title, description and original link belong to one document, so they are
+    // only sent when a single file is being uploaded; with several, each title is
+    // taken from its own filename and the rest can be edited afterwards.
+    form.append("title", single ? title.trim() : titleFromName(item.file.name));
+    if (single && description) form.append("description", description);
     form.append("departmentId", departmentId);
     if (folderId) form.append("folderId", folderId);
-    if (sourceUrl.trim()) form.append("sourceUrl", sourceUrl.trim());
+    if (single && sourceUrl.trim()) form.append("sourceUrl", sourceUrl.trim());
     if (replaces) form.append("replacesId", replaces.id);
 
-    const { getToken } = await import("@/lib/auth/client");
-    const token = await getToken();
-
-    await new Promise<void>((resolve) => {
+    return new Promise((resolve) => {
       const xhr = new XMLHttpRequest();
+      xhrRef.current = xhr;
       xhr.open("POST", "/api/admin/knowledge");
       xhr.setRequestHeader("authorization", `Bearer ${token}`);
       xhr.upload.onprogress = (e) => {
-        if (e.lengthComputable) setProgress(Math.round((e.loaded / e.total) * 100));
+        if (e.lengthComputable)
+          patch(item.id, { progress: Math.round((e.loaded / e.total) * 100) });
       };
       xhr.onload = () => {
-        setUploading(false);
-        if (xhr.status >= 200 && xhr.status < 300) {
-          // 202: stored and queued. The row appears as Processing immediately and
-          // the table polls until the background job flips it to Active.
-          toast.success(replaces ? "Replacement uploaded" : "Document uploaded", {
-            description: "Processing in the background — the status will update automatically.",
-          });
-          onOpenChange(false);
-          onUploaded();
-        } else {
-          let message = `Upload failed (${xhr.status})`;
-          try {
-            const body = JSON.parse(xhr.responseText);
-            message = body?.error?.message ?? message;
-            if (body?.error?.details?.length) message = body.error.details[0].message;
-          } catch {
-            /* keep the status-based message */
-          }
-          setError(message);
+        xhrRef.current = null;
+        // 202: stored and queued. The row appears as Processing immediately and
+        // the table polls until the background job flips it to Active.
+        if (xhr.status >= 200 && xhr.status < 300) return resolve({ ok: true });
+        let message = `Upload failed (${xhr.status})`;
+        try {
+          const body = JSON.parse(xhr.responseText);
+          message = body?.error?.message ?? message;
+          if (body?.error?.details?.length) message = body.error.details[0].message;
+        } catch {
+          /* keep the status-based message */
         }
-        resolve();
+        resolve({ ok: false, message });
       };
       xhr.onerror = () => {
-        setUploading(false);
-        setError("Network error during upload");
-        resolve();
+        xhrRef.current = null;
+        resolve({ ok: false, message: "Network error during upload" });
+      };
+      xhr.onabort = () => {
+        xhrRef.current = null;
+        resolve({ ok: false, aborted: true });
       };
       xhr.send(form);
     });
   }
 
-  const canUpload = !isUploading && !!file && !!departmentId && !!title.trim();
+  /** Stops after the file in flight is aborted; the rest stay ready to upload. */
+  function stopUpload() {
+    stopRef.current = true;
+    xhrRef.current?.abort();
+  }
+
+  async function submit(event: React.FormEvent) {
+    event.preventDefault();
+    // Uploads what is not done yet — so pressing Upload again retries failures.
+    const todo = files.filter((f) => f.status === "pending" || f.status === "error");
+    if (todo.length === 0) return setError("Choose a file to upload");
+    setError(null);
+    setUploading(true);
+    stopRef.current = false;
+    const single = files.length === 1;
+
+    const { getToken } = await import("@/lib/auth/client");
+    let ok = 0;
+    let failed = 0;
+
+    // Sequential on purpose: it bounds memory and parsing on the server, keeps
+    // the duplicate check race-free (two identical files cannot both pass it),
+    // and stops the embedding step being hit by every file at once.
+    for (const [i, item] of todo.entries()) {
+      if (stopRef.current) break;
+      setRun({ index: i + 1, total: todo.length });
+      patch(item.id, { status: "uploading", progress: 0, message: undefined });
+      // Fetched per file: a token lasts ~15 minutes and a long batch can outlive one.
+      const token = await getToken();
+      if (stopRef.current) {
+        patch(item.id, { status: "pending", progress: 0 });
+        break;
+      }
+      const result = await uploadOne(item, token, single);
+      if (result.ok) {
+        ok++;
+        patch(item.id, { status: "done", progress: 100 });
+      } else if (result.aborted) {
+        // If the request had already reached the server, retrying reports it as
+        // a duplicate rather than uploading it twice.
+        patch(item.id, { status: "pending", progress: 0 });
+      } else {
+        failed++;
+        patch(item.id, { status: "error", progress: 0, message: result.message });
+      }
+    }
+
+    setUploading(false);
+    setRun({ index: 0, total: 0 });
+    if (ok > 0) onUploaded();
+
+    if (stopRef.current) {
+      toast.info(ok > 0 ? `Stopped — ${ok} uploaded` : "Upload stopped");
+    } else if (failed === 0) {
+      toast.success(
+        replaces
+          ? "Replacement uploaded"
+          : ok === 1
+            ? "Document uploaded"
+            : `${ok} documents uploaded`,
+        { description: "Processing in the background — the status will update automatically." },
+      );
+      onOpenChange(false);
+    } else if (ok > 0) {
+      toast.warning(`${ok} uploaded, ${failed} failed`, {
+        description: "Remove or fix the failed files, then upload again.",
+      });
+    }
+    // Nothing uploaded and something failed: the list already shows each error.
+  }
+
+  const pendingCount = files.filter((f) => f.status === "pending" || f.status === "error").length;
+  const canUpload =
+    !isUploading &&
+    pendingCount > 0 &&
+    !!departmentId &&
+    // The Title field only exists (and is only required) for a single file.
+    (files.length > 1 || !!title.trim());
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(o) => !(isUploading && !o) && onOpenChange(o)}>
       <DialogContent className={DOCUMENT_DIALOG}>
         <DialogHeader className="shrink-0 border-b bg-muted/30 px-5 py-5 pr-12 text-left sm:px-6 sm:pr-12">
           <div className="flex items-start gap-3">
@@ -981,12 +1136,12 @@ function UploadDialog({
             </span>
             <div className="min-w-0">
               <DialogTitle className="break-words leading-snug [overflow-wrap:anywhere]">
-                {replaces ? `Replace “${replaces.title}”` : "Upload document"}
+                {replaces ? `Replace “${replaces.title}”` : "Upload documents"}
               </DialogTitle>
               <DialogDescription className="mt-0.5">
                 {replaces
                   ? `Uploads v${replaces.version + 1} and archives the current version.`
-                  : "Add a document to your team’s knowledge base."}
+                  : "Add one or more documents to your team’s knowledge base."}
               </DialogDescription>
             </div>
           </div>
@@ -994,25 +1149,31 @@ function UploadDialog({
 
         <form onSubmit={submit} className="flex min-h-0 min-w-0 flex-1 flex-col">
           <div className={DOCUMENT_FORM_BODY}>
-            {/* Drag-and-drop file zone */}
+            {/* File picker — one or many files, all filed to the same department and location */}
             <div className="space-y-1.5">
-              <Label htmlFor="file-input">File</Label>
+              <Label htmlFor="file-input">{replaces ? "File" : "Files"}</Label>
               <input
                 id="file-input"
                 type="file"
                 ref={fileRef}
                 accept={ACCEPT}
+                multiple={!replaces}
                 className="sr-only"
-                onChange={(e) => acceptFile(e.target.files?.[0] ?? null)}
+                onChange={(e) => {
+                  acceptFiles(Array.from(e.target.files ?? []));
+                  // Cleared so choosing the same file again still fires onChange.
+                  e.target.value = "";
+                }}
               />
               <div
                 role="button"
                 tabIndex={0}
-                onClick={() => fileRef.current?.click()}
+                aria-disabled={isUploading}
+                onClick={() => !isUploading && fileRef.current?.click()}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    fileRef.current?.click();
+                    if (!isUploading) fileRef.current?.click();
                   }
                 }}
                 onDragOver={(e) => {
@@ -1023,9 +1184,11 @@ function UploadDialog({
                 onDrop={(e) => {
                   e.preventDefault();
                   setDragging(false);
-                  acceptFile(e.dataTransfer.files?.[0] ?? null);
+                  acceptFiles(Array.from(e.dataTransfer.files ?? []));
                 }}
                 className={`flex cursor-pointer flex-wrap items-center gap-3 rounded-xl border-2 border-dashed px-4 py-6 transition ${FOCUS_RING} ${
+                  isUploading ? "cursor-not-allowed opacity-60" : ""
+                } ${
                   dragging
                     ? "border-[#2b6cf3] bg-[#2b6cf3]/[0.06]"
                     : "border-blue-200 bg-blue-50/40 hover:border-blue-400 hover:bg-blue-50 dark:border-white/15 dark:hover:border-white/25 dark:hover:bg-white/[0.03]"
@@ -1033,7 +1196,7 @@ function UploadDialog({
               >
                 <span
                   className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                    file
+                    files.length > 0
                       ? "bg-emerald-500/10 text-emerald-600"
                       : "bg-slate-100 text-slate-400 dark:bg-white/5"
                   }`}
@@ -1041,82 +1204,144 @@ function UploadDialog({
                   <FileText className="h-5 w-5" />
                 </span>
                 <div className="min-w-0 flex-1 basis-40">
-                  {file ? (
-                    <>
-                      <p
-                        title={file.name}
-                        className="truncate text-sm font-medium text-slate-800 dark:text-slate-100"
-                      >
-                        {file.name}
-                      </p>
-                      <p className="text-xs text-slate-400">{formatBytes(file.size)}</p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
-                        Choose a file or drag and drop
-                      </p>
-                      <p className="text-xs text-slate-400">PDF, DOCX, TXT, MD · up to 20 MB</p>
-                    </>
-                  )}
+                  <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                    {replaces
+                      ? files.length > 0
+                        ? "Choose a different file"
+                        : "Choose a file or drag and drop"
+                      : files.length > 0
+                        ? "Add more files"
+                        : "Choose files or drag and drop"}
+                  </p>
+                  <p className="text-xs text-slate-400">
+                    PDF, DOCX, TXT, MD · up to 20 MB{replaces ? "" : " each"}
+                  </p>
                 </div>
-                {file ? (
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 shrink-0 text-slate-400 hover:text-red-600"
-                    aria-label="Remove file"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setFile(null);
-                      if (fileRef.current) fileRef.current.value = "";
-                    }}
-                  >
-                    <X className="h-4 w-4" />
-                  </Button>
-                ) : (
-                  <span className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-white/15 dark:text-slate-300">
-                    Browse
-                  </span>
-                )}
+                <span className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-slate-600 dark:border-white/15 dark:text-slate-300">
+                  Browse
+                </span>
               </div>
+
+              {/* Every selected filename is listed before upload, then each row
+                  carries that file's own progress and outcome. */}
+              {files.length > 0 && (
+                <div className="space-y-1.5 pt-1">
+                  <p className="text-xs font-medium text-slate-600 dark:text-slate-300">
+                    {files.length === 1 ? "1 file selected" : `${files.length} files selected`}
+                    <span className="font-normal text-slate-400">
+                      {" "}
+                      · {formatBytes(files.reduce((n, f) => n + f.file.size, 0))}
+                    </span>
+                  </p>
+                  <ul
+                    aria-label="Selected files"
+                    className="max-h-56 divide-y divide-slate-100 overflow-y-auto rounded-xl border border-slate-200 dark:divide-white/[0.06] dark:border-white/10"
+                  >
+                    {files.map((item) => (
+                      <li key={item.id} className="flex items-start gap-3 px-3 py-2.5">
+                        <span className="mt-0.5 shrink-0">
+                          {item.status === "uploading" ? (
+                            <Loader2 className="h-4 w-4 animate-spin text-[#2b6cf3]" />
+                          ) : item.status === "done" ? (
+                            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+                          ) : item.status === "error" ? (
+                            <AlertCircle className="h-4 w-4 text-red-600" />
+                          ) : (
+                            <FileText className="h-4 w-4 text-slate-400" />
+                          )}
+                        </span>
+                        <div className="min-w-0 flex-1">
+                          <p
+                            title={item.file.name}
+                            className="truncate text-sm font-medium text-slate-800 dark:text-slate-100"
+                          >
+                            {item.file.name}
+                          </p>
+                          {item.status === "error" ? (
+                            <p role="alert" className="text-xs text-red-600 dark:text-red-400">
+                              {item.message}
+                            </p>
+                          ) : (
+                            <p className="text-xs tabular-nums text-slate-400">
+                              {fileStatusText(item)}
+                            </p>
+                          )}
+                          {item.status === "uploading" && (
+                            <div className="mt-1.5 h-1 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
+                              <div
+                                className="h-full rounded-full transition-all"
+                                style={{ width: `${item.progress}%`, background: BRAND }}
+                                role="progressbar"
+                                aria-label={`Uploading ${item.file.name}`}
+                                aria-valuenow={item.progress}
+                                aria-valuemin={0}
+                                aria-valuemax={100}
+                              />
+                            </div>
+                          )}
+                        </div>
+                        {!isUploading && item.status !== "done" && (
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon"
+                            className="h-7 w-7 shrink-0 text-slate-400 hover:text-red-600"
+                            aria-label={`Remove ${item.file.name}`}
+                            onClick={() => setFiles((prev) => prev.filter((f) => f.id !== item.id))}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </div>
 
-            {/* Title with counter */}
-            <div className="space-y-1.5">
-              <Label htmlFor="title">
-                Title <span className="text-red-500">*</span>
-              </Label>
-              <Input
-                id="title"
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                required
-                maxLength={TITLE_MAX}
-                placeholder="Enter a descriptive title for the document"
-              />
-              <p className="text-right text-[11px] tabular-nums text-slate-400">
-                {title.length} / {TITLE_MAX}
+            {files.length > 1 ? (
+              <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-xs text-slate-600 dark:border-white/10 dark:bg-white/[0.03] dark:text-slate-300">
+                Each document’s title is taken from its file name. You can edit a document’s title,
+                description and original link afterwards.
               </p>
-            </div>
+            ) : (
+              <>
+                {/* Title with counter */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="title">
+                    Title <span className="text-red-500">*</span>
+                  </Label>
+                  <Input
+                    id="title"
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    required
+                    maxLength={TITLE_MAX}
+                    placeholder="Enter a descriptive title for the document"
+                  />
+                  <p className="text-right text-[11px] tabular-nums text-slate-400">
+                    {title.length} / {TITLE_MAX}
+                  </p>
+                </div>
 
-            {/* Description with counter */}
-            <div className="space-y-1.5">
-              <Label htmlFor="description">Description (optional)</Label>
-              <Textarea
-                id="description"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={3}
-                className="min-w-0 resize-y"
-                maxLength={DESC_MAX}
-                placeholder="Add a short description to help others understand this document"
-              />
-              <p className="text-right text-[11px] tabular-nums text-slate-400">
-                {description.length} / {DESC_MAX}
-              </p>
-            </div>
+                {/* Description with counter */}
+                <div className="space-y-1.5">
+                  <Label htmlFor="description">Description (optional)</Label>
+                  <Textarea
+                    id="description"
+                    value={description}
+                    onChange={(e) => setDescription(e.target.value)}
+                    rows={3}
+                    className="min-w-0 resize-y"
+                    maxLength={DESC_MAX}
+                    placeholder="Add a short description to help others understand this document"
+                  />
+                  <p className="text-right text-[11px] tabular-nums text-slate-400">
+                    {description.length} / {DESC_MAX}
+                  </p>
+                </div>
+              </>
+            )}
 
             <div className="grid min-w-0 gap-5 sm:grid-cols-2">
               <div className="min-w-0 space-y-1.5">
@@ -1147,7 +1372,9 @@ function UploadDialog({
                 <p className="text-xs text-slate-500 dark:text-slate-400">
                   {replaces
                     ? "A replacement stays in the original department."
-                    : "The document will be searchable within the selected department."}
+                    : files.length > 1
+                      ? "The documents will be searchable within the selected department."
+                      : "The document will be searchable within the selected department."}
                 </p>
               </div>
 
@@ -1201,37 +1428,27 @@ function UploadDialog({
                 </p>
               </div>
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="sourceUrl">Link to the original</Label>
-              <Input
-                id="sourceUrl"
-                type="url"
-                inputMode="url"
-                value={sourceUrl}
-                onChange={(e) => setSourceUrl(e.target.value)}
-                placeholder="https://…"
-              />
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Optional. Shown as an “Open original” button on the resource.
-              </p>
-            </div>
-
-            {isUploading && (
+            {files.length <= 1 && (
               <div className="space-y-1.5">
-                <div className="h-1.5 overflow-hidden rounded-full bg-slate-100 dark:bg-white/10">
-                  <div
-                    className="h-full rounded-full transition-all"
-                    style={{ width: `${progress}%`, background: BRAND }}
-                    role="progressbar"
-                    aria-valuenow={progress}
-                    aria-valuemin={0}
-                    aria-valuemax={100}
-                  />
-                </div>
-                <p className="text-xs text-slate-500 tabular-nums dark:text-slate-400">
-                  {progress < 100 ? `Uploading ${progress}%` : "Queuing…"}
+                <Label htmlFor="sourceUrl">Link to the original</Label>
+                <Input
+                  id="sourceUrl"
+                  type="url"
+                  inputMode="url"
+                  value={sourceUrl}
+                  onChange={(e) => setSourceUrl(e.target.value)}
+                  placeholder="https://…"
+                />
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Optional. Shown as an “Open original” button on the resource.
                 </p>
               </div>
+            )}
+
+            {isUploading && run.total > 1 && (
+              <p role="status" className="text-xs tabular-nums text-slate-500 dark:text-slate-400">
+                Uploading file {run.index} of {run.total}…
+              </p>
             )}
 
             {error && (
@@ -1247,8 +1464,12 @@ function UploadDialog({
             <p className="mr-auto self-center text-xs text-muted-foreground">
               Processing starts after upload.
             </p>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancel
+            <Button
+              type="button"
+              variant="outline"
+              onClick={isUploading ? stopUpload : () => onOpenChange(false)}
+            >
+              {isUploading ? "Stop" : "Cancel"}
             </Button>
             <Button
               type="submit"
@@ -1261,7 +1482,13 @@ function UploadDialog({
               ) : (
                 <UploadCloud className="h-4 w-4" />
               )}
-              {replaces ? "Upload replacement" : "Upload"}
+              {replaces
+                ? "Upload replacement"
+                : isUploading && run.total > 1
+                  ? "Uploading…"
+                  : pendingCount > 1
+                    ? `Upload ${pendingCount} files`
+                    : "Upload"}
             </Button>
           </DialogFooter>
         </form>
