@@ -75,6 +75,7 @@ import {
 } from "@/lib/api/client";
 import { useDebounced } from "@/hooks/use-debounced";
 import { useMe } from "@/hooks/use-me";
+import { ConflictScanPanel } from "@/components/admin/conflict-scan";
 import { DataTable, type Column, type SortState } from "@/components/admin/data-table";
 import { EmptyState, ErrorState, NoResults, TableSkeleton } from "@/components/admin/states";
 import { StatusBadge } from "@/components/admin/status-badge";
@@ -527,6 +528,11 @@ function KnowledgePage() {
           }
         />
       </section>
+
+      {/* Management only: a library-wide scan spans every department. The API enforces it too. */}
+      <ConflictScanPanel
+        canScan={me?.role === "admin" || me?.role === "super_admin"}
+      />
 
       {/* One toolbar rather than filters scattered across the page. */}
       <div className={`${CARD} flex flex-wrap items-center gap-2 p-2`}>

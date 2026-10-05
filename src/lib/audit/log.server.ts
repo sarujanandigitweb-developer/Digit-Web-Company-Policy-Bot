@@ -26,6 +26,8 @@ export type AuditAction =
   | "knowledge.review_started"
   | "knowledge.review_decided"
   | "knowledge.review_published"
+  | "knowledge.conflict_scan_started"
+  | "knowledge.conflict_scan_completed"
   | "knowledge.uploaded"
   | "knowledge.updated"
   | "knowledge.replaced"

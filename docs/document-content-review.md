@@ -20,7 +20,17 @@ For existing documents, choose **Scan existing document** on the same details pa
 | Exact excerpt      | Includes only a continuous, verbatim excerpt selected from the source. Existing passages remain unchanged. Useful for mixed repeated/new content.        |
 | Different contexts | Keeps both after the reviewer confirms different applicability. Not allowed for equivalent duplicate content.                                            |
 
-All overlaps require a written reason and the policy owner's confirmation. AI proposes relationships; it does not choose the correct company rule. Corrected text must come from an approved source. The original upload is preserved; this feature does not rewrite source PDFs or Google Drive documents. A duplicate-only upload remains inactive after publication.
+All overlaps require a written reason and the policy owner's confirmation. AI proposes relationships; it does not choose the correct company rule. Corrected text must come from an approved source. This feature does not rewrite source PDFs or Google Drive documents. **Correction:** the uploaded file itself is not stored. The pipeline keeps extracted text, display text, checksum and metadata, and `storage_key` is unused. "Preserved" in this document means the extracted text is kept, not the original bytes. Keeping original files needs object storage, which is not part of this branch. A duplicate-only upload remains inactive after publication.
+
+## Library conflict scan and chatbot disclosure
+
+Migration `0013_conflict_scan.sql` adds `knowledge_conflict_scans` and `knowledge_pair_comparisons`. It is additive and idempotent, and it changes no existing table.
+
+- **Scan (Admin → Knowledge → Library conflict scan, admins and super admins only).** Each step compares one active, searchable passage with its candidates in the same or shared departments, using the existing classifier. Each pair is stored once, from either side, so findings are deduplicated and an interrupted scan resumes. Steps are compare-and-set on the cursor, so a double-click or a second administrator gets a 409 rather than a duplicate. The scan is read-only: it changes no chunk, document status or retrieval result. A failed classification is stored as **uncertain** for human review and never as new information. Findings are grouped into conflicts, uncertain, partly repeated and duplicates, each with both sources side by side. A finding disappears once either passage is no longer active and searchable.
+- **Disclosure (chatbot).** When an open conflict is relevant to the question and both of its documents fall inside the request's department scope, the answer prompt states that approved sources disagree, names the two documents by title only, and forbids choosing either version. Open conflicts come from library-scan findings and from per-document reviews still in progress. Titles are the only thing that leaves the module. If the conflict check itself fails, the prompt gets a cautious instruction rather than none. With no open conflict the prompt is unchanged.
+- **Not done here.** The scan does not resolve anything. Each conflict is resolved through its document's existing review, which is the only path that changes what is published. Resolving a library-scan finding directly from the scan screen is future work.
+
+Known limits: the classifier is a model, so the scan finds candidates and proposes relations, it does not prove completeness. Candidate search takes the eight closest vectors and eight lexical matches per passage. Passages within one document are not compared with each other. Different departments are compared only when one of them is shared, and a difference in date or applicability is only as reliable as the model's reading of it.
 
 An exact excerpt is re-embedded. Other comparisons reuse stored embeddings. Source and page/heading references are shown side by side. Audit entries record scans, decisions, excerpts, notes, reviewer identities and published exclusions.
 
@@ -65,6 +75,14 @@ No production changes, actual policy corrections, live migration, authenticated 
 Use management-approved questions for new, duplicate, conflicting and mixed-content documents. Check existing company questions and a question with no supported answer. Confirm that pending/excluded content cannot appear in general or document-scoped answers, and verify source/page references. Test a team leader attempting to replace shared guidance and concurrent reviewers changing the knowledge base.
 
 PASS: unresolved/uncertain content is unavailable, equivalent content is indexed once, selected new content is retained, superseded content is excluded, required audit records exist, existing approved answers still work, and unsupported questions do not invent rules. Technical/senior review is required before merge; management/HR must decide which conflicting company policy is authoritative. A live model's scan is a review aid, never automatic business approval.
+
+## Conflict scan validation — 2026-10-05
+
+- `npm test`: **44 passed, 0 failed** (the branch's 32, plus 8 scan and disclosure tests in `tests/conflict-scan.test.mjs` and 4 interface tests in `tests/conflict-scan-ui.test.mjs`).
+- Scan and disclosure tests use real PostgreSQL SQL (PGlite with pgvector and pg_trgm) and deterministic **synthetic** rules in place of the model. They verify SQL, scope, deduplication, read-only behaviour, stale-cursor refusal and failure handling. They do not verify model accuracy.
+- Migration 0013 applied twice on top of 0012: no error, tables present.
+- Unauthenticated `GET` and `POST` to `/api/admin/knowledge/conflict-scan` return 401 against the running dev server.
+- Not verified: the scan on the real library, the model's classifications, an authenticated browser session, and the live database.
 
 ## Validation result — 2026-10-05
 

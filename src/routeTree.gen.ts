@@ -52,6 +52,7 @@ import { Route as ApiAdminLibraryFoldersRouteImport } from './routes/api/admin/l
 import { Route as ApiAdminLibraryChatRouteImport } from './routes/api/admin/library.chat'
 import { Route as ApiAdminKnowledgeStatsRouteImport } from './routes/api/admin/knowledge.stats'
 import { Route as ApiAdminKnowledgeSearchRouteImport } from './routes/api/admin/knowledge.search'
+import { Route as ApiAdminKnowledgeConflictScanRouteImport } from './routes/api/admin/knowledge.conflict-scan'
 import { Route as ApiAdminKnowledgeIdRouteImport } from './routes/api/admin/knowledge.$id'
 import { Route as ApiAdminGapsBulkDeleteRouteImport } from './routes/api/admin/gaps.bulk-delete'
 import { Route as ApiAdminGapsIdRouteImport } from './routes/api/admin/gaps.$id'
@@ -278,6 +279,12 @@ const ApiAdminKnowledgeSearchRoute = ApiAdminKnowledgeSearchRouteImport.update({
   path: '/search',
   getParentRoute: () => ApiAdminKnowledgeRoute,
 } as any)
+const ApiAdminKnowledgeConflictScanRoute =
+  ApiAdminKnowledgeConflictScanRouteImport.update({
+    id: '/conflict-scan',
+    path: '/conflict-scan',
+    getParentRoute: () => ApiAdminKnowledgeRoute,
+  } as any)
 const ApiAdminKnowledgeIdRoute = ApiAdminKnowledgeIdRouteImport.update({
   id: '/$id',
   path: '/$id',
@@ -373,6 +380,7 @@ export interface FileRoutesByFullPath {
   '/api/admin/gaps/$id': typeof ApiAdminGapsIdRoute
   '/api/admin/gaps/bulk-delete': typeof ApiAdminGapsBulkDeleteRoute
   '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
+  '/api/admin/knowledge/conflict-scan': typeof ApiAdminKnowledgeConflictScanRoute
   '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
   '/api/admin/library/chat': typeof ApiAdminLibraryChatRoute
@@ -427,6 +435,7 @@ export interface FileRoutesByTo {
   '/api/admin/gaps/$id': typeof ApiAdminGapsIdRoute
   '/api/admin/gaps/bulk-delete': typeof ApiAdminGapsBulkDeleteRoute
   '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
+  '/api/admin/knowledge/conflict-scan': typeof ApiAdminKnowledgeConflictScanRoute
   '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
   '/api/admin/library/chat': typeof ApiAdminLibraryChatRoute
@@ -483,6 +492,7 @@ export interface FileRoutesById {
   '/api/admin/gaps/$id': typeof ApiAdminGapsIdRoute
   '/api/admin/gaps/bulk-delete': typeof ApiAdminGapsBulkDeleteRoute
   '/api/admin/knowledge/$id': typeof ApiAdminKnowledgeIdRouteWithChildren
+  '/api/admin/knowledge/conflict-scan': typeof ApiAdminKnowledgeConflictScanRoute
   '/api/admin/knowledge/search': typeof ApiAdminKnowledgeSearchRoute
   '/api/admin/knowledge/stats': typeof ApiAdminKnowledgeStatsRoute
   '/api/admin/library/chat': typeof ApiAdminLibraryChatRoute
@@ -540,6 +550,7 @@ export interface FileRouteTypes {
     | '/api/admin/gaps/$id'
     | '/api/admin/gaps/bulk-delete'
     | '/api/admin/knowledge/$id'
+    | '/api/admin/knowledge/conflict-scan'
     | '/api/admin/knowledge/search'
     | '/api/admin/knowledge/stats'
     | '/api/admin/library/chat'
@@ -594,6 +605,7 @@ export interface FileRouteTypes {
     | '/api/admin/gaps/$id'
     | '/api/admin/gaps/bulk-delete'
     | '/api/admin/knowledge/$id'
+    | '/api/admin/knowledge/conflict-scan'
     | '/api/admin/knowledge/search'
     | '/api/admin/knowledge/stats'
     | '/api/admin/library/chat'
@@ -649,6 +661,7 @@ export interface FileRouteTypes {
     | '/api/admin/gaps/$id'
     | '/api/admin/gaps/bulk-delete'
     | '/api/admin/knowledge/$id'
+    | '/api/admin/knowledge/conflict-scan'
     | '/api/admin/knowledge/search'
     | '/api/admin/knowledge/stats'
     | '/api/admin/library/chat'
@@ -1001,6 +1014,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminKnowledgeSearchRouteImport
       parentRoute: typeof ApiAdminKnowledgeRoute
     }
+    '/api/admin/knowledge/conflict-scan': {
+      id: '/api/admin/knowledge/conflict-scan'
+      path: '/conflict-scan'
+      fullPath: '/api/admin/knowledge/conflict-scan'
+      preLoaderRoute: typeof ApiAdminKnowledgeConflictScanRouteImport
+      parentRoute: typeof ApiAdminKnowledgeRoute
+    }
     '/api/admin/knowledge/$id': {
       id: '/api/admin/knowledge/$id'
       path: '/$id'
@@ -1172,12 +1192,14 @@ const ApiAdminKnowledgeIdRouteWithChildren =
 
 interface ApiAdminKnowledgeRouteChildren {
   ApiAdminKnowledgeIdRoute: typeof ApiAdminKnowledgeIdRouteWithChildren
+  ApiAdminKnowledgeConflictScanRoute: typeof ApiAdminKnowledgeConflictScanRoute
   ApiAdminKnowledgeSearchRoute: typeof ApiAdminKnowledgeSearchRoute
   ApiAdminKnowledgeStatsRoute: typeof ApiAdminKnowledgeStatsRoute
 }
 
 const ApiAdminKnowledgeRouteChildren: ApiAdminKnowledgeRouteChildren = {
   ApiAdminKnowledgeIdRoute: ApiAdminKnowledgeIdRouteWithChildren,
+  ApiAdminKnowledgeConflictScanRoute: ApiAdminKnowledgeConflictScanRoute,
   ApiAdminKnowledgeSearchRoute: ApiAdminKnowledgeSearchRoute,
   ApiAdminKnowledgeStatsRoute: ApiAdminKnowledgeStatsRoute,
 }
