@@ -22,6 +22,7 @@ import {
   RETRIEVAL_ENABLED,
 } from "@/lib/services/chat-knowledge.server";
 import { buildFollowups } from "@/lib/services/followups.server";
+import { insertAfterStart } from "@/lib/chat-stream";
 
 interface ChatRequestBody {
   messages?: UIMessage[];
@@ -124,21 +125,23 @@ export const Route = createFileRoute("/api/chat")({
             return "Something went wrong.";
           },
           execute: async ({ writer }) => {
+            // Data parts are inserted AFTER the answer's `start` chunk, so they join
+            // the answer's own message. Written before it, they created an empty
+            // assistant message that rendered as a stray "…" bubble.
+            const dataChunks: UIMessageChunk[] = [];
             try {
               const followups = await buildFollowups(context);
-              writer.write({ type: "data-followups", data: followups } as UIMessageChunk);
+              dataChunks.push({ type: "data-followups", data: followups } as UIMessageChunk);
             } catch (err) {
               console.error("[api/chat] follow-up build failed:", err);
             }
             // The numbered passages behind THIS answer. The browser resolves [n]
             // markers against this list only, never against another message's.
-            writer.write({
+            dataChunks.push({
               type: "data-sources",
               data: citationSources(context.chunks),
             } as UIMessageChunk);
-            // merge() forwards the model's message framing correctly — the answer
-            // streams exactly as before.
-            writer.merge(forClient);
+            writer.merge(forClient.pipeThrough(insertAfterStart(dataChunks)));
           },
         });
 

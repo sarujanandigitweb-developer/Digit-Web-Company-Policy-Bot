@@ -230,6 +230,11 @@ function Index() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const isLoading = status === "submitted" || status === "streaming";
+  // Waiting means: request sent, or streaming but no answer text has arrived yet.
+  const lastMessage = messages[messages.length - 1];
+  const answerStarted =
+    !!lastMessage && lastMessage.role === "assistant" && renderText(lastMessage).trim() !== "";
+  const awaitingAnswer = status === "submitted" || classifying || (status === "streaming" && !answerStarted);
   const wasLoading = useRef(false);
 
   useEffect(() => {
@@ -359,7 +364,7 @@ function Index() {
                     />
                   ))}
                 </AnimatePresence>
-                {(status === "submitted" || classifying) && <ThinkingIndicator />}
+                {awaitingAnswer && <ThinkingIndicator />}
                 {(() => {
                   // Follow-ups for the most recent answer, shown once it finishes.
                   if (isLoading || picker) return null;
@@ -814,11 +819,15 @@ function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreami
     );
   }
 
+  // An assistant message with no text yet is not content. The loading indicator
+  // covers the wait; this avoids a blank or "…" bubble.
+  if (text.trim() === "") return null;
+
   const sources = extractSources(text);
   // Only this message's own numbered passages. A marker with no matching entry stays text.
   const citations = citationSourcesFromParts(message.parts);
   const citationByNumber = new Map(citations.map((c) => [c.n, c]));
-  const answerText = normalizeAnswer(shown) || "…";
+  const answerText = normalizeAnswer(shown);
   const linkedText = citations.length
     ? linkCitations(answerText, new Set(citationByNumber.keys()))
     : answerText;
