@@ -15,6 +15,7 @@ import {
 import { fetchTranscript } from "@/lib/transcript.server";
 import {
   buildKnowledgeContext,
+  citationSources,
   latestQuestion,
   recordExchange,
   resolveDepartment,
@@ -129,6 +130,12 @@ export const Route = createFileRoute("/api/chat")({
             } catch (err) {
               console.error("[api/chat] follow-up build failed:", err);
             }
+            // The numbered passages behind THIS answer. The browser resolves [n]
+            // markers against this list only, never against another message's.
+            writer.write({
+              type: "data-sources",
+              data: citationSources(context.chunks),
+            } as UIMessageChunk);
             // merge() forwards the model's message framing correctly — the answer
             // streams exactly as before.
             writer.merge(forClient);

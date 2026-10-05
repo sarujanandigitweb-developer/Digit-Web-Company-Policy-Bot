@@ -23,8 +23,15 @@ import {
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { normalizeAnswer } from "@/lib/format-answer";
-import { hasAdminAreaAccess } from "@/lib/auth/permissions";
+import { hasAdminAreaAccess, hasGlobalKnowledgeAccess } from "@/lib/auth/permissions";
 import { useMe } from "@/hooks/use-me";
+import {
+  citationNumberFromHref,
+  citationSourcesFromParts,
+  linkCitations,
+  type CitationSource,
+} from "@/lib/citations";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -808,6 +815,13 @@ function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreami
   }
 
   const sources = extractSources(text);
+  // Only this message's own numbered passages. A marker with no matching entry stays text.
+  const citations = citationSourcesFromParts(message.parts);
+  const citationByNumber = new Map(citations.map((c) => [c.n, c]));
+  const answerText = normalizeAnswer(shown) || "…";
+  const linkedText = citations.length
+    ? linkCitations(answerText, new Set(citationByNumber.keys()))
+    : answerText;
 
   return (
     <motion.div
@@ -819,7 +833,18 @@ function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreami
       <BrandLogo className="mt-1 h-9 w-9 shadow" />
       <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900/70">
         <div className="prose prose-sm max-w-none leading-[1.7] text-slate-800 dark:prose-invert dark:text-slate-100">
-          <ReactMarkdown>{normalizeAnswer(shown) || "…"}</ReactMarkdown>
+          <ReactMarkdown
+            components={{
+              a({ href, children }) {
+                const n = citationNumberFromHref(href);
+                const source = n === null ? undefined : citationByNumber.get(n);
+                if (n === null || !source) return <>{children}</>;
+                return <CitationButton n={n} source={source} />;
+              },
+            }}
+          >
+            {linkedText}
+          </ReactMarkdown>
           {isStreaming && (
             <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse bg-slate-500 align-middle dark:bg-slate-300" />
           )}
@@ -844,6 +869,55 @@ function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreami
         )}
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * One numbered citation. A popover, so it is keyboard reachable (focus, Enter or
+ * Space to open, Escape to close). The document link appears only for roles that
+ * can open any document in the admin console; that page enforces access itself.
+ */
+function CitationButton({ n, source }: { n: number; source: CitationSource }) {
+  const { data: me } = useMe();
+  const canOpenDocument = hasGlobalKnowledgeAccess(me?.role ?? "team_leader");
+  const location = [
+    source.heading,
+    source.pageNumber !== null ? `page ${source.pageNumber}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Source ${n}: ${source.title}`}
+          className="mx-px inline-flex items-center rounded px-0.5 align-baseline text-[0.85em] font-semibold text-[#2b6cf3] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b6cf3]"
+        >
+          [{n}]
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 space-y-2 p-3 text-sm">
+        <p className="font-semibold text-slate-900 dark:text-white">{source.title}</p>
+        {(source.department || location) && (
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {[source.department, location].filter(Boolean).join(" · ")}
+          </p>
+        )}
+        <blockquote className="max-h-56 overflow-y-auto whitespace-pre-line border-l-2 border-[#2b6cf3]/50 pl-3 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+          {source.excerpt}
+        </blockquote>
+        {canOpenDocument && (
+          <Link
+            to="/admin/knowledge/$id"
+            params={{ id: source.documentId }}
+            className="inline-block text-xs font-medium text-[#2b6cf3] hover:underline"
+          >
+            Open in admin console
+          </Link>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
