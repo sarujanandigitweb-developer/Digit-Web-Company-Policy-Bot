@@ -320,7 +320,13 @@ function KnowledgePage() {
             <TooltipProvider>
               <UiTooltip>
                 <TooltipTrigger>
-                  <StatusBadge value={d.status} />
+                  <StatusBadge
+                    value={
+                      ["queued", "comparing", "ready", "error"].includes(d.review_state)
+                        ? "pending_review"
+                        : d.status
+                    }
+                  />
                 </TooltipTrigger>
                 <TooltipContent className="max-w-xs">
                   <p className="text-xs">{d.processing_error}</p>
@@ -328,7 +334,13 @@ function KnowledgePage() {
               </UiTooltip>
             </TooltipProvider>
           ) : (
-            <StatusBadge value={d.status} />
+            <StatusBadge
+              value={
+                ["queued", "comparing", "ready", "error"].includes(d.review_state)
+                  ? "pending_review"
+                  : d.status
+              }
+            />
           ),
       },
       {
@@ -416,19 +428,24 @@ function KnowledgePage() {
                 <Pencil className="mr-2 h-4 w-4" />
                 Edit
               </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => retryMutation.mutate(d.id)}>
+              <DropdownMenuItem
+                disabled={d.status !== "failed"}
+                onClick={() => retryMutation.mutate(d.id)}
+              >
                 <RefreshCw className="mr-2 h-4 w-4" />
-                Reprocess
+                Retry failed processing
               </DropdownMenuItem>
               <DropdownMenuSeparator />
-              {d.status !== "active" && d.status !== "processing" && (
-                <DropdownMenuItem
-                  onClick={() => statusMutation.mutate({ id: d.id, next: "active" })}
-                >
-                  <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" />
-                  Activate
-                </DropdownMenuItem>
-              )}
+              {d.status !== "active" &&
+                d.status !== "processing" &&
+                d.status !== "pending_review" && (
+                  <DropdownMenuItem
+                    onClick={() => statusMutation.mutate({ id: d.id, next: "active" })}
+                  >
+                    <CheckCircle2 className="mr-2 h-4 w-4 text-emerald-600" />
+                    Activate
+                  </DropdownMenuItem>
+                )}
               {d.status !== "archived" && (
                 <DropdownMenuItem
                   onClick={() => statusMutation.mutate({ id: d.id, next: "archived" })}
@@ -494,6 +511,7 @@ function KnowledgePage() {
           tone="emerald"
           hint="Searchable"
         />
+        <Kpi label="Pending review" value={s?.pending_review ?? 0} icon={Eye} tone="blue" />
         <Kpi label="Processing" value={s?.processing ?? 0} icon={RefreshCw} tone="blue" />
         <Kpi label="Failed" value={s?.failed ?? 0} icon={Archive} tone="red" />
         <Kpi label="Chunks" value={s?.chunk_count ?? 0} icon={Layers} tone="violet" />
@@ -555,7 +573,15 @@ function KnowledgePage() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All statuses</SelectItem>
-            {["draft", "processing", "active", "inactive", "failed", "archived"].map((v) => (
+            {[
+              "draft",
+              "processing",
+              "pending_review",
+              "active",
+              "inactive",
+              "failed",
+              "archived",
+            ].map((v) => (
               <SelectItem key={v} value={v}>
                 {v.charAt(0).toUpperCase() + v.slice(1)}
               </SelectItem>
@@ -863,7 +889,7 @@ const titleFromName = (name: string) => (name.replace(/\.[^.]+$/, "") || name).s
 function fileStatusText(item: QueuedFile): string {
   if (item.status === "uploading")
     return item.progress < 100 ? `Uploading ${item.progress}%` : "Queuing…";
-  if (item.status === "done") return "Uploaded — processing in the background";
+  if (item.status === "done") return "Uploaded — processing, then waiting for content review";
   return `${formatBytes(item.file.size)} · Ready to upload`;
 }
 

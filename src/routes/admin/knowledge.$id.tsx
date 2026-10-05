@@ -11,6 +11,7 @@ import { DataTable, type Column } from "@/components/admin/data-table";
 import { EmptyState, ErrorState, LoadingBlock, NoResults } from "@/components/admin/states";
 import { StatusBadge } from "@/components/admin/status-badge";
 import { CARD } from "@/components/admin/theme";
+import { DocumentReview } from "@/components/admin/document-review";
 
 export const Route = createFileRoute("/admin/knowledge/$id")({
   component: DocumentDetailsPage,
@@ -23,6 +24,7 @@ interface Chunk {
   heading: string | null;
   page_number: number | null;
   has_embedding: boolean;
+  is_searchable: boolean;
 }
 
 function DocumentDetailsPage() {
@@ -99,6 +101,11 @@ function DocumentDetailsPage() {
         key: "embedding",
         header: "Embedding",
         render: (c) => <StatusBadge value={c.has_embedding ? "active" : "processing"} />,
+      },
+      {
+        key: "retrieval",
+        header: "Chatbot access",
+        render: (c) => <span className="text-xs">{c.is_searchable ? "Included" : "Withheld"}</span>,
       },
       {
         key: "copy",
@@ -222,6 +229,8 @@ function DocumentDetailsPage() {
           </dl>
         </section>
       </div>
+
+      <DocumentReview key={d.id} document={d} />
 
       <section aria-label="Chunks" className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">

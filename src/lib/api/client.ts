@@ -128,7 +128,8 @@ export interface KnowledgeDocument {
   file_size_bytes: number;
   version: number;
   supersedes_id: string | null;
-  status: "draft" | "processing" | "active" | "inactive" | "failed" | "archived";
+  status: "draft" | "processing" | "pending_review" | "active" | "inactive" | "failed" | "archived";
+  review_state: string;
   processing_error: string | null;
   processing_attempts: number;
   processing_started_at: string | null;
@@ -148,6 +149,7 @@ export interface KnowledgeStats {
   total_documents: number;
   draft: number;
   processing: number;
+  pending_review: number;
   active: number;
   failed: number;
   archived: number;

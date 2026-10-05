@@ -10,6 +10,12 @@ const code = ts.transpileModule(readFileSync("src/lib/services/google-drive.serv
 
 for (const timestamp of ["2026-09-18 10:00:00+00", new Date("2026-09-18T10:00:00Z")]) {
   test(`same instant uses cache: ${typeof timestamp}`, async () => {
+    let now = Date.now();
+    class Clock extends Date {
+      static now() {
+        return now;
+      }
+    }
     let reads = 0;
     let fetches = 0;
     const exports = {};
@@ -42,7 +48,7 @@ for (const timestamp of ["2026-09-18 10:00:00+00", new Date("2026-09-18T10:00:00
         assert.ok(id in mocks);
         return mocks[id];
       },
-      Date,
+      Date: Clock,
       Buffer,
       fetch: async (url) => {
         fetches++;
@@ -60,6 +66,9 @@ for (const timestamp of ["2026-09-18 10:00:00+00", new Date("2026-09-18T10:00:00
     assert.equal(reads, 1, "Concurrent requests share a cache read");
     assert.equal(fetches, 1, "Concurrent requests share Drive validation");
     await exports.getDriveDocument(link, "Guide");
-    assert.equal(fetches, 2, "Later request still revalidates freshness");
+    assert.equal(fetches, 1, "A later request inside the 60-second memo uses validated freshness");
+    now += 60_001;
+    await exports.getDriveDocument(link, "Guide");
+    assert.equal(fetches, 2, "A request after the memo expires revalidates freshness");
   });
 }

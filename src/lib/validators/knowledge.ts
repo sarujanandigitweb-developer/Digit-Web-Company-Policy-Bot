@@ -6,6 +6,7 @@ import { listQuerySchema, uuid } from "./admin";
 export const documentStatusSchema = z.enum([
   "draft",
   "processing",
+  "pending_review",
   "active",
   "inactive",
   "failed",
@@ -80,3 +81,17 @@ export const retrieveQuerySchema = z.object({
     .transform((v) => v === "true"),
   limit: z.coerce.number().int().min(1).max(20).default(8),
 });
+
+export const reviewActionSchema = z.discriminatedUnion("reviewAction", [
+  z.object({ reviewAction: z.literal("start") }),
+  z.object({ reviewAction: z.literal("compare") }),
+  z.object({ reviewAction: z.literal("publish"), run: uuid }),
+  z.object({
+    reviewAction: z.literal("decide"),
+    run: uuid,
+    chunkId: uuid,
+    decision: z.enum(["include", "keep_existing", "use_incoming", "excerpt", "distinct"]),
+    excerpt: z.string().max(10000).optional(),
+    note: z.string().trim().min(1).max(2000).optional(),
+  }),
+]);

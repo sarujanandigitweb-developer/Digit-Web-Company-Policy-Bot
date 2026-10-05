@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { waitUntil } from "@vercel/functions";
 import { knowledgeScope, requireAdminArea } from "@/lib/auth/session.server";
 import { api, routeParam } from "@/lib/http/handler";
-import { ok } from "@/lib/http/errors";
+import { Conflict, ok } from "@/lib/http/errors";
 import { uuid } from "@/lib/validators/admin";
 import * as knowledge from "@/lib/services/knowledge.service";
 import { processDocument } from "@/lib/knowledge/process.server";
@@ -21,6 +21,11 @@ export const Route = createFileRoute("/api/admin/knowledge/$id/retry")({
         const id = uuid.parse(routeParam(ctx, "id"));
         // Scoped: a team leader can only retry a document in their department.
         const document = await knowledge.getById(id, knowledgeScope(user));
+
+        if (document.status !== "failed")
+          throw Conflict(
+            "Retry is available only for failed processing. Use the content review scan for processed documents.",
+          );
 
         waitUntil(
           processDocument(id).catch((error) => {

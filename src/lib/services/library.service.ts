@@ -105,7 +105,7 @@ export async function tree(departmentScope: string | null): Promise<LibraryTree>
   // read a document, the library must not offer it as something to ask about.
   const resourceRows = (await sql`
     SELECT d.id, d.title, d.description, d.folder_id, d.updated_at, d.version, d.source_url,
-           (SELECT count(*) FROM knowledge_chunks c
+           (SELECT count(*) FROM knowledge_search_chunks c
              WHERE c.document_id = d.id AND c.embedding IS NOT NULL)::int AS embedded_count
       FROM knowledge_documents d
      WHERE d.status = 'active'
@@ -193,9 +193,17 @@ export async function getResource(
            -- The reading copy keeps inline images; extracted_text has had them
            -- stripped so the embedding step can use it. NULL means the two are
            -- the same. See migration 0010.
-           COALESCE(d.display_text, d.extracted_text) AS body,
+           CASE WHEN EXISTS (
+             SELECT 1 FROM knowledge_chunks original WHERE original.document_id=d.id AND
+               (NOT original.is_searchable OR original.approved_content IS DISTINCT FROM original.content
+                 AND original.approved_content IS NOT NULL OR NOT EXISTS (
+                   SELECT 1 FROM knowledge_search_chunks available WHERE available.id=original.id
+                 ))
+           ) THEN (SELECT string_agg(s.searchable_content, E'\n\n' ORDER BY s.chunk_index)
+             FROM knowledge_search_chunks s WHERE s.document_id=d.id)
+           ELSE COALESCE(d.display_text, d.extracted_text) END AS body,
            d.file_type, d.folder_id, f.owner_name,
-           (SELECT count(*) FROM knowledge_chunks c
+           (SELECT count(*) FROM knowledge_search_chunks c
              WHERE c.document_id = d.id AND c.embedding IS NOT NULL)::int AS embedded_count
       FROM knowledge_documents d
       LEFT JOIN knowledge_folders f ON f.id = d.folder_id
@@ -236,7 +244,7 @@ export async function getResource(
     sourceUrl: row.source_url,
     pages: text ? text.split(PAGE_SEPARATOR) : [],
     format: row.file_type === "docx" || row.file_type === "md" ? "markdown" : "text",
-    ready: row.embedded_count > 0,
+    ready: row.embedded_count > 0 && !!text.trim(),
   };
 }
 

@@ -87,10 +87,10 @@ export async function retrieve(options: RetrieveOptions): Promise<RetrievedChunk
   // only the final rows cross the wire.
   return (await sql`
     WITH candidates AS (
-      SELECT c.id, c.document_id, c.department_id, c.content, c.heading, c.page_number,
+      SELECT c.id, c.document_id, c.department_id, c.searchable_content AS content, c.heading, c.page_number,
              1 - (c.embedding <=> ${embedding}::vector) AS vector_score,
-             similarity(c.content, ${options.query})     AS keyword_score
-        FROM knowledge_chunks c
+             similarity(c.searchable_content, ${options.query})     AS keyword_score
+        FROM knowledge_search_chunks c
         JOIN knowledge_documents d ON d.id = c.document_id
         JOIN departments cd ON cd.id = c.department_id
        WHERE d.status = 'active'

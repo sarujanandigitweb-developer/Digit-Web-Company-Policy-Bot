@@ -10,8 +10,10 @@ import {
 } from "@/lib/knowledge/parse.server";
 import { serializePages } from "@/lib/knowledge/process.server";
 import { createHash } from "node:crypto";
+import { KNOWLEDGE_WRITE_LOCK } from "@/lib/knowledge/review.server";
 
-export type DocumentStatus = "draft" | "processing" | "active" | "inactive" | "failed" | "archived";
+export type DocumentStatus =
+  "draft" | "processing" | "pending_review" | "active" | "inactive" | "failed" | "archived";
 
 export interface KnowledgeDocument {
   id: string;
@@ -26,6 +28,7 @@ export interface KnowledgeDocument {
   version: number;
   supersedes_id: string | null;
   status: DocumentStatus;
+  review_state: string;
   processing_error: string | null;
   processing_attempts: number;
   processing_started_at: string | null;
@@ -47,7 +50,7 @@ export interface KnowledgeDocument {
 const DOCUMENT_COLUMNS = `
   d.id, d.department_id, dep.name AS department_name, d.title, d.description,
   d.file_name, d.file_type, d.file_size_bytes, d.checksum, d.version, d.supersedes_id,
-  d.status, d.processing_error, d.processing_attempts, d.processing_started_at,
+  d.status, d.review_state, d.processing_error, d.processing_attempts, d.processing_started_at,
   d.processing_completed_at, d.chunk_count, d.page_count, d.uploaded_by,
   p.full_name AS uploaded_by_name, d.folder_id, d.source_url, d.created_at, d.updated_at,
   (SELECT count(*) FROM knowledge_chunks c
@@ -103,7 +106,8 @@ export async function list(
       -- what departmentId the client asked for.
       AND (${restrictTo}::uuid IS NULL OR d.department_id = ${restrictTo}::uuid)
       AND (${query.status ?? null}::document_status IS NULL
-             OR d.status = ${query.status ?? null}::document_status)
+             OR d.status = ${query.status ?? null}::document_status
+             OR (${query.status ?? null}::text='pending_review' AND d.review_state IN ('queued','comparing','ready','error')))
     ORDER BY ${sql.unsafe(orderColumn)} ${sql.unsafe(orderDir)} NULLS LAST, d.id
     LIMIT ${query.pageSize} OFFSET ${offset}
   `) as Array<KnowledgeDocument & { total_count: number }>;
@@ -144,6 +148,7 @@ export interface ChunkRow {
   heading: string | null;
   page_number: number | null;
   has_embedding: boolean;
+  is_searchable: boolean;
 }
 
 export async function listChunks(
@@ -154,12 +159,14 @@ export async function listChunks(
 ) {
   await getById(documentId, restrictTo); // 404s for an unknown or out-of-scope document.
   const rows = (await sql`
-    SELECT id, chunk_index, content, heading, page_number,
-           (embedding IS NOT NULL) AS has_embedding,
+    SELECT c.id, c.chunk_index, COALESCE(c.approved_content,c.content) AS content, c.heading, c.page_number,
+           (c.embedding IS NOT NULL) AS has_embedding,
+           EXISTS (SELECT 1 FROM knowledge_search_chunks available JOIN knowledge_documents d ON d.id=available.document_id
+             WHERE available.id=c.id AND d.status='active') AS is_searchable,
            count(*) OVER()::int AS total_count
-      FROM knowledge_chunks
-     WHERE document_id = ${documentId}::uuid
-     ORDER BY chunk_index
+      FROM knowledge_chunks c
+     WHERE c.document_id = ${documentId}::uuid
+     ORDER BY c.chunk_index
      LIMIT ${limit} OFFSET ${offset}
   `) as Array<ChunkRow & { total_count: number }>;
   const items = rows.map(({ total_count: _t, ...c }) => c);
@@ -240,21 +247,17 @@ export async function upload(
   let previous: { id: string; version: number } | null = null;
   if (input.replacesId) {
     const rows = (await sql`
-      SELECT id, version FROM knowledge_documents WHERE id = ${input.replacesId}::uuid
-    `) as Array<{ id: string; version: number }>;
+      SELECT id, version, department_id FROM knowledge_documents WHERE id = ${input.replacesId}::uuid
+    `) as Array<{ id: string; version: number; department_id: string }>;
     if (!rows[0]) throw NotFound("The document being replaced does not exist");
+    assertInScope(actor, rows[0].department_id);
+    if (rows[0].department_id !== input.departmentId)
+      throw BadRequest("A replacement must stay in the same department");
     previous = rows[0];
   }
 
   return withTransaction(async (tx) => {
-    // Archived first: the partial unique index allows only one non-archived row
-    // per (department, checksum), and the replacement must be able to take it.
-    if (previous) {
-      await tx.query(`UPDATE knowledge_documents SET status = 'archived' WHERE id = $1::uuid`, [
-        previous.id,
-      ]);
-    }
-
+    // Keep the previous approved version live until reviewed publication.
     const { rows } = await tx.query(
       `INSERT INTO knowledge_documents
          (department_id, title, description, file_name, file_type, file_size_bytes,
@@ -305,6 +308,7 @@ export async function setStatus(
   request: Request,
 ): Promise<KnowledgeDocument> {
   await withTransaction(async (tx) => {
+    await tx.query(`SELECT pg_advisory_xact_lock($1)`, [KNOWLEDGE_WRITE_LOCK]);
     const before = await tx.query(
       `SELECT * FROM knowledge_documents WHERE id = $1::uuid FOR UPDATE`,
       [id],
@@ -313,8 +317,20 @@ export async function setStatus(
     assertInScope(actor, before.rows[0].department_id);
     const current = before.rows[0] as { status: DocumentStatus; chunk_count: number };
 
-    if (status === "active" && current.status === "processing") {
-      throw Conflict("Document is still processing");
+    if (
+      status === "active" &&
+      (current.status === "processing" || current.status === "pending_review")
+    ) {
+      throw Conflict(
+        "Complete content comparison and use Publish reviewed content on the document details page",
+      );
+    }
+    if (
+      status === "active" &&
+      before.rows[0].review_state !== "none" &&
+      before.rows[0].review_state !== "published"
+    ) {
+      throw Conflict("This document must complete content review before activation");
     }
 
     // Counted live rather than read from chunk_count: that column is a cached
@@ -325,7 +341,7 @@ export async function setStatus(
     if (status === "active") {
       const usable = await tx.query(
         `SELECT count(*)::int AS count FROM knowledge_chunks
-          WHERE document_id = $1::uuid AND embedding IS NOT NULL`,
+          WHERE document_id = $1::uuid AND embedding IS NOT NULL AND is_searchable`,
         [id],
       );
       if (usable.rows[0].count === 0) {
@@ -397,6 +413,7 @@ export async function updateMetadata(
   }
 
   await withTransaction(async (tx) => {
+    await tx.query(`SELECT pg_advisory_xact_lock($1)`, [KNOWLEDGE_WRITE_LOCK]);
     const before = await tx.query(
       `SELECT * FROM knowledge_documents WHERE id = $1::uuid FOR UPDATE`,
       [id],
@@ -409,6 +426,8 @@ export async function updateMetadata(
     // a document into a department that already holds the same file would collide.
     // Surface that as a clear 409 rather than a raw constraint error.
     if (input.departmentId && input.departmentId !== current.department_id) {
+      if (current.status === "pending_review")
+        throw Conflict("Cancel or finish the review before moving this document");
       const clash = await tx.query(
         `SELECT 1 FROM knowledge_documents
           WHERE department_id = $1::uuid AND checksum = $2 AND status <> 'archived' AND id <> $3::uuid`,
@@ -451,6 +470,11 @@ export async function updateMetadata(
         `UPDATE knowledge_chunks SET department_id = $2::uuid WHERE document_id = $1::uuid`,
         [id, after.department_id],
       );
+      await tx.query(
+        `UPDATE knowledge_documents SET status=CASE WHEN status='active' THEN 'inactive'::document_status ELSE status END,
+        review_state='queued',review_origin='existing',review_basis=NULL,review_run=NULL WHERE id=$1::uuid`,
+        [id],
+      );
     }
 
     await writeAudit(tx, {
@@ -476,6 +500,7 @@ export async function updateMetadata(
 
 export async function remove(id: string, actor: SessionUser, request: Request): Promise<void> {
   await withTransaction(async (tx) => {
+    await tx.query(`SELECT pg_advisory_xact_lock($1)`, [KNOWLEDGE_WRITE_LOCK]);
     const before = await tx.query(
       `SELECT * FROM knowledge_documents WHERE id = $1::uuid FOR UPDATE`,
       [id],
@@ -503,6 +528,7 @@ export interface KnowledgeStats {
   total_documents: number;
   draft: number;
   processing: number;
+  pending_review: number;
   active: number;
   failed: number;
   archived: number;
@@ -516,6 +542,7 @@ export async function stats(departmentId?: string): Promise<KnowledgeStats> {
       count(*)::int AS total_documents,
       count(*) FILTER (WHERE status = 'draft')::int      AS draft,
       count(*) FILTER (WHERE status = 'processing')::int AS processing,
+      count(*) FILTER (WHERE status = 'pending_review' OR review_state IN ('queued','comparing','ready','error'))::int AS pending_review,
       count(*) FILTER (WHERE status = 'active')::int     AS active,
       count(*) FILTER (WHERE status = 'failed')::int     AS failed,
       count(*) FILTER (WHERE status = 'archived')::int   AS archived,

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 const STYLES: Record<string, string> = {
   active: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
   healthy: "bg-emerald-100 text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-300",
+  pending_review: "bg-amber-100 text-amber-700 dark:bg-amber-900/40 dark:text-amber-300",
   processing: "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300",
   draft: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300",
   inactive: "bg-slate-100 text-slate-600 dark:bg-white/10 dark:text-slate-300",
@@ -21,6 +22,7 @@ const STYLES: Record<string, string> = {
 };
 
 const LABELS: Record<string, string> = {
+  pending_review: "Pending review",
   super_admin: "Super Admin",
   admin: "Admin",
   team_leader: "Team Leader",

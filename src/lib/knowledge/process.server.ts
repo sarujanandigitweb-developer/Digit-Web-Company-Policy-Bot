@@ -2,9 +2,11 @@ import { sql, withTransaction } from "@/lib/db/client.server";
 import { chunkPages, DEFAULT_CHUNK_OPTIONS, type ChunkOptions } from "./chunk";
 import { embedAll, toVectorLiteral } from "./embed.server";
 import type { ParsedPage } from "./parse.server";
+import { randomUUID } from "node:crypto";
+import { compareNext, KNOWLEDGE_WRITE_LOCK } from "./review.server";
 
 /**
- * Document processing: text → chunks → embeddings → active.
+ * Document processing: text → chunks → embeddings → comparison → pending review.
  *
  * Runs outside the upload request. Vercel has no worker process, so there is no
  * queue service to hand this to; instead the document row is the queue
@@ -25,8 +27,8 @@ export interface ProcessResult {
 }
 
 /**
- * Processes one document. Safe to call twice: chunks are deleted and rebuilt, so
- * a half-finished previous run leaves no duplicates behind.
+ * Claims queued or failed processing. Concurrent calls cannot rebuild a live
+ * document, and an expired worker cannot overwrite a newer attempt.
  */
 export async function processDocument(
   documentId: string,
@@ -41,17 +43,19 @@ export async function processDocument(
            processing_completed_at = NULL,
            processing_error = NULL,
            processing_attempts = processing_attempts + 1
-     WHERE id = ${documentId}::uuid
-     RETURNING id, department_id, extracted_text, page_count
+     WHERE id = ${documentId}::uuid AND status IN ('processing','failed')
+       AND (status='failed' OR processing_started_at IS NULL OR processing_started_at < now()-interval '5 minutes')
+     RETURNING id, department_id, extracted_text, page_count, processing_attempts
   `) as Array<{
     id: string;
     department_id: string;
     extracted_text: string | null;
     page_count: number | null;
+    processing_attempts: number;
   }>;
 
   const document = rows[0];
-  if (!document) throw new Error(`Document ${documentId} not found`);
+  if (!document) throw new Error("Document is not queued, or processing is already running");
 
   try {
     if (!document.extracted_text?.trim()) {
@@ -70,6 +74,16 @@ export async function processDocument(
     );
 
     await withTransaction(async (tx) => {
+      await tx.query(`SELECT pg_advisory_xact_lock($1)`, [KNOWLEDGE_WRITE_LOCK]);
+      const current = await tx.query(
+        `SELECT status,processing_attempts FROM knowledge_documents WHERE id=$1::uuid FOR UPDATE`,
+        [documentId],
+      );
+      if (
+        current.rows[0]?.status !== "processing" ||
+        current.rows[0]?.processing_attempts !== document.processing_attempts
+      )
+        throw new Error("Document processing was cancelled");
       await tx.query(`DELETE FROM knowledge_chunks WHERE document_id = $1::uuid`, [documentId]);
 
       // One multi-row INSERT rather than a statement per chunk: a 200-chunk
@@ -79,7 +93,7 @@ export async function processDocument(
       chunks.forEach((chunk, i) => {
         const p = i * 7;
         values.push(
-          `($${p + 1}::uuid,$${p + 2}::uuid,$${p + 3},$${p + 4},$${p + 5},$${p + 6},$${p + 7}::vector)`,
+          `($${p + 1}::uuid,$${p + 2}::uuid,$${p + 3},$${p + 4},$${p + 5},$${p + 6},$${p + 7}::vector,false)`,
         );
         params.push(
           documentId,
@@ -94,21 +108,35 @@ export async function processDocument(
 
       await tx.query(
         `INSERT INTO knowledge_chunks
-           (document_id, department_id, chunk_index, content, heading, page_number, embedding)
+           (document_id, department_id, chunk_index, content, heading, page_number, embedding, is_searchable)
          VALUES ${values.join(",")}`,
         params,
       );
 
       await tx.query(
         `UPDATE knowledge_documents
-            SET status = 'active',
+            SET status = 'pending_review', review_state='queued', review_origin='upload',
+                review_run=$3::uuid, review_error=NULL,
                 chunk_count = $2,
                 processing_completed_at = now(),
                 processing_error = NULL
           WHERE id = $1::uuid`,
-        [documentId, chunks.length],
+        [documentId, chunks.length, randomUUID()],
+      );
+      await tx.query(
+        `INSERT INTO knowledge_chunk_reviews(chunk_id,document_id,incoming_content)
+        SELECT id,document_id,content FROM knowledge_chunks WHERE document_id=$1::uuid`,
+        [documentId],
+      );
+      await tx.query(
+        `UPDATE knowledge_documents SET review_basis=knowledge_review_basis(id) WHERE id=$1::uuid`,
+        [documentId],
       );
     });
+
+    // Start the comparison; the review screen resumes the remaining passages.
+    // Failure here leaves the document pending, never active or failed ingestion.
+    await compareNext(documentId).catch(() => {});
 
     return {
       documentId,
@@ -127,7 +155,7 @@ export async function processDocument(
          SET status = 'failed',
              processing_error = ${message.slice(0, 500)},
              processing_completed_at = now()
-       WHERE id = ${documentId}::uuid
+       WHERE id = ${documentId}::uuid AND status='processing' AND processing_attempts=${document.processing_attempts}
     `;
     throw error;
   }
