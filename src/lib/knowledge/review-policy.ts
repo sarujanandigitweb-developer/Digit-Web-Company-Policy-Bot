@@ -1,5 +1,13 @@
 export type ReviewKind = "new" | "duplicate" | "overlap" | "conflict" | "uncertain";
-export type ReviewDecision = "include" | "keep_existing" | "use_incoming" | "excerpt" | "distinct";
+export type ReviewDecision =
+  | "include"
+  | "keep_existing"
+  | "use_incoming"
+  | "excerpt"
+  | "distinct"
+  // The incoming passage is withheld and the conflict stays open on purpose. The
+  // existing source is untouched, and the chatbot discloses the disagreement.
+  | "unresolved";
 
 export interface ReviewMatch {
   chunk_id: string;
@@ -34,6 +42,9 @@ export function validateDecision(input: {
   }
   if (input.kind !== "new" && !input.note?.trim()) {
     throw new Error("Record the reason and policy owner's confirmation for this decision");
+  }
+  if (input.decision === "unresolved" && input.kind === "new") {
+    throw new Error("Only flagged passages can be left unresolved");
   }
   if (input.decision === "distinct" && input.kind === "duplicate") {
     throw new Error("Equivalent content should not be indexed twice");

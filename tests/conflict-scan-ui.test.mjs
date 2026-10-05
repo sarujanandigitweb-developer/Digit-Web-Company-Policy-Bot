@@ -24,10 +24,10 @@ const code = ts.transpileModule(
 ).outputText;
 const mocks = {
   "@tanstack/react-router": {
-    Link: ({ children, to, params, ...props }) =>
+    Link: ({ children, to, params, hash, ...props }) =>
       React.createElement(
         "a",
-        { ...props, href: `${to}`.replace("$id", params?.id ?? "") },
+        { ...props, href: `${to}`.replace("$id", params?.id ?? "") + (hash ? `#${hash}` : "") },
         children,
       ),
   },
@@ -115,7 +115,8 @@ test("results show both sources for each finding, grouped by relation", () => {
   assert.match(html, /Synthetic B/);
   assert.match(html, /Source A/);
   assert.match(html, /Source B/);
-  assert.match(html, /Open document/);
+  assert.match(html, /Resolve in this document/);
+  assert.match(html, /href="\/admin\/knowledge\/a-doc#content-review"/);
 });
 
 test("progress reports checked passages and a determinate bar", () => {
@@ -127,7 +128,7 @@ test("progress reports checked passages and a determinate bar", () => {
 test("the scan panel is read-only: it offers no decision or publish controls", () => {
   const html = render();
   assert.doesNotMatch(html, /Keep existing|Use incoming|Publish|Accept incoming|Keep both/);
-  assert.match(html, /nothing is changed or withheld/i);
+  assert.match(html, /scanning changes nothing/i);
 });
 
 test("an empty completed scan says so instead of showing an empty list", () => {

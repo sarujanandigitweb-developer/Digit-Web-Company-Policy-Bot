@@ -37,22 +37,35 @@ export async function openConflicts(scope: ConflictScope): Promise<OpenConflict[
       : "department";
   const departmentId = scope.departmentId;
 
-  // Cheap existence check first, so a question with no open conflicts never pays
-  // for a query embedding.
+  // Three sources of open conflicts, all between APPROVED sources except the
+  // withheld side of an unresolved decision (which is named, never quoted):
+  //  1. library-scan conflicts, both passages searchable;
+  //  2. an existing-document review still in progress, both passages searchable;
+  //  3. an upload published with a decision of 'unresolved'. Its passage is withheld
+  //     on purpose, so only the existing side must be searchable. The document may be
+  //     inactive when every other passage was withheld, and is still disclosed.
+  // Pending, unpublished uploads are never disclosed.
   const anyOpen = (await sql`
     WITH pairs AS (
-      SELECT p.chunk_low AS a, p.chunk_high AS b
+      SELECT p.chunk_low AS a, p.chunk_high AS b, true AS both_searchable
         FROM knowledge_pair_comparisons p WHERE p.relation = 'conflict'
-      UNION
-      SELECT r.chunk_id, (m->>'chunk_id')::uuid
+      UNION ALL
+      SELECT r.chunk_id, (m->>'chunk_id')::uuid, true
         FROM knowledge_chunk_reviews r
         JOIN knowledge_documents rd ON rd.id = r.document_id
         CROSS JOIN LATERAL jsonb_array_elements(r.matches) m
        WHERE rd.review_origin = 'existing' AND rd.review_state <> 'published'
          AND rd.status IN ('active', 'pending_review') AND m->>'relation' = 'conflict'
+      UNION ALL
+      SELECT r.chunk_id, (m->>'chunk_id')::uuid, false
+        FROM knowledge_chunk_reviews r
+        JOIN knowledge_documents rd ON rd.id = r.document_id
+        CROSS JOIN LATERAL jsonb_array_elements(r.matches) m
+       WHERE r.decision = 'unresolved' AND rd.review_state = 'published' AND m->>'relation' = 'conflict'
     )
-    SELECT 1 FROM pairs
-     WHERE EXISTS (SELECT 1 FROM knowledge_chunks x WHERE x.id = pairs.a AND x.is_searchable)
+    SELECT 1 FROM pairs p
+      JOIN knowledge_chunks cb ON cb.id = p.b AND cb.is_searchable
+     WHERE EXISTS (SELECT 1 FROM knowledge_chunks x WHERE x.id = p.a AND (x.is_searchable OR NOT p.both_searchable))
      LIMIT 1
   `) as unknown[];
   if (anyOpen.length === 0) return [];
@@ -60,27 +73,36 @@ export async function openConflicts(scope: ConflictScope): Promise<OpenConflict[
   const embedding = toVectorLiteral(await embedQuery(scope.question));
   const rows = (await sql`
     WITH pairs AS (
-      SELECT p.chunk_low AS a, p.chunk_high AS b
+      SELECT p.chunk_low AS a, p.chunk_high AS b, true AS both_searchable
         FROM knowledge_pair_comparisons p WHERE p.relation = 'conflict'
-      UNION
-      SELECT r.chunk_id, (m->>'chunk_id')::uuid
+      UNION ALL
+      SELECT r.chunk_id, (m->>'chunk_id')::uuid, true
         FROM knowledge_chunk_reviews r
         JOIN knowledge_documents rd ON rd.id = r.document_id
         CROSS JOIN LATERAL jsonb_array_elements(r.matches) m
        WHERE rd.review_origin = 'existing' AND rd.review_state <> 'published'
          AND rd.status IN ('active', 'pending_review') AND m->>'relation' = 'conflict'
+      UNION ALL
+      SELECT r.chunk_id, (m->>'chunk_id')::uuid, false
+        FROM knowledge_chunk_reviews r
+        JOIN knowledge_documents rd ON rd.id = r.document_id
+        CROSS JOIN LATERAL jsonb_array_elements(r.matches) m
+       WHERE r.decision = 'unresolved' AND rd.review_state = 'published' AND m->>'relation' = 'conflict'
     )
     SELECT da.title AS title_a, db.title AS title_b,
            GREATEST(1 - (ca.embedding <=> ${embedding}::vector),
                     1 - (cb.embedding <=> ${embedding}::vector)) AS relevance
       FROM pairs p
-      JOIN knowledge_chunks ca ON ca.id = p.a AND ca.is_searchable AND ca.embedding IS NOT NULL
+      JOIN knowledge_chunks ca ON ca.id = p.a AND (ca.is_searchable OR NOT p.both_searchable)
+                              AND ca.embedding IS NOT NULL
       JOIN knowledge_chunks cb ON cb.id = p.b AND cb.is_searchable AND cb.embedding IS NOT NULL
-      JOIN knowledge_documents da ON da.id = ca.document_id AND da.status = 'active'
-      JOIN knowledge_documents db ON db.id = cb.document_id AND db.status = 'active'
+      JOIN knowledge_documents da ON da.id = ca.document_id
+      JOIN knowledge_documents db ON db.id = cb.document_id
       JOIN departments depa ON depa.id = ca.department_id
       JOIN departments depb ON depb.id = cb.department_id
-     WHERE (
+     WHERE (da.status = 'active' OR (NOT p.both_searchable AND da.review_state = 'published'))
+       AND db.status = 'active'
+       AND (
              ${mode} = 'global'
           OR (${mode} = 'shared' AND depa.is_shared AND depb.is_shared)
           OR (${mode} = 'department'

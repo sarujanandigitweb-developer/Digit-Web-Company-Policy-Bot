@@ -75,6 +75,8 @@ async function fixture(t) {
   // psql autocommit semantics: commit ALTER TYPE before using its new value.
   await db.exec(migration.slice(0, migration.indexOf("BEGIN;")));
   await db.exec(migration.slice(migration.indexOf("BEGIN;")));
+  await db.exec(source("migrations/0013_conflict_scan.sql"));
+  await db.exec(source("migrations/0014_read_only_existing_scan.sql"));
   const query = async (executor, text, params = []) => {
     // PGlite is single-connection; native multi-connection lock contention is
     // outside this harness. All other SQL executes unchanged.
@@ -381,13 +383,20 @@ test("new exact excerpt keeps original upload and indexes only selected text", a
   assert.equal(original.rows[0].content, "Synthetic existing rule. New synthetic procedure.");
 });
 
-test("existing-document scan quarantines both sides until reviewed publication", async (t) => {
+test("scanning an existing approved document changes no visibility until a published decision", async (t) => {
   const f = await fixture(t);
   const a = await f.document("Synthetic deadline: 5 days"),
     b = await f.document("Synthetic deadline: 7 days");
+  const before = await f.retrieval.retrieve({ query: "deadline", departmentId: f.dept });
+  assert.equal(before.length, 2);
   const start = await f.review.startReview(a.id, f.admin, request);
+  assert.equal((await f.knowledge.getById(a.id)).status, "active", "start keeps the document active");
   await f.review.compareNext(a.id, f.admin);
-  assert.equal((await f.retrieval.retrieve({ query: "deadline", departmentId: f.dept })).length, 0);
+  assert.equal(
+    (await f.retrieval.retrieve({ query: "deadline", departmentId: f.dept })).length,
+    2,
+    "a comparison in progress hides nothing from answers",
+  );
   await f.review.decide(
     a.id,
     {
@@ -399,11 +408,16 @@ test("existing-document scan quarantines both sides until reviewed publication",
     f.admin,
     request,
   );
-  assert.equal((await f.retrieval.retrieve({ query: "deadline", departmentId: f.dept })).length, 0);
+  assert.equal(
+    (await f.retrieval.retrieve({ query: "deadline", departmentId: f.dept })).length,
+    2,
+    "a recorded decision is not visible until it is published",
+  );
   await f.review.publish(a.id, start.review_run, f.admin, request);
   const results = await f.retrieval.retrieve({ query: "deadline", departmentId: f.dept });
   assert.equal(results.length, 1);
   assert.equal(results[0].document_id, b.id);
+  assert.equal((await f.knowledge.getById(a.id)).status, "inactive", "a fully withheld document is inactive, by decision");
 });
 
 test("leader cannot access other departments or supersede shared guidance", async (t) => {
@@ -478,13 +492,40 @@ test("superseding another scanned document prevents its old review restoring rem
     request,
   );
   await f.review.publish(a.id, reviewA.review_run, f.admin, request);
+  // The stale review is refused, whichever check fires first: the document was
+  // emptied by A's decision (so it is no longer pending), or the basis changed.
   await assert.rejects(
     f.review.publish(b.id, reviewB.review_run, f.admin, request),
-    /knowledge changed/,
+    /knowledge changed|Complete the current comparison/,
   );
+  assert.equal((await f.knowledge.getById(b.id)).status, "inactive");
 });
 
-test("replacement archives the old version only after reviewed publication", async (t) => {
+test("a duplicate replacement keeps its canonical copy and archives nothing", async (t) => {
+  const f = await fixture(t);
+  f.setRelation("duplicate");
+  const old = await f.document("Synthetic policy version 1");
+  const incoming = await f.document("Synthetic policy version 2", {
+    status: "pending_review",
+    supersedes: old.id,
+  });
+  const start = await f.review.startReview(incoming.id, f.admin, request);
+  await f.review.compareNext(incoming.id, f.admin);
+  await f.review.decide(
+    incoming.id,
+    { run: start.review_run, chunkId: incoming.chunkId, decision: "keep_existing", note: "same content" },
+    f.admin,
+    request,
+  );
+  await f.review.publish(incoming.id, start.review_run, f.admin, request);
+  assert.equal((await f.knowledge.getById(old.id)).status, "active", "the canonical copy stays live");
+  assert.equal((await f.knowledge.getById(incoming.id)).status, "inactive", "the duplicate upload stays out");
+  const results = await f.retrieval.retrieve({ query: "policy", departmentId: f.dept });
+  assert.equal(results.length, 1);
+  assert.equal(results[0].document_id, old.id);
+});
+
+test("accepting a replacement archives the old version only when nothing of it remains", async (t) => {
   const f = await fixture(t);
   f.setRelation("duplicate");
   const old = await f.document("Synthetic policy version 1");
@@ -497,27 +538,7 @@ test("replacement archives the old version only after reviewed publication", asy
   await f.review.compareNext(incoming.id, f.admin);
   await f.review.decide(
     incoming.id,
-    {
-      run: start.review_run,
-      chunkId: incoming.chunkId,
-      decision: "keep_existing",
-      note: "same content",
-    },
-    f.admin,
-    request,
-  );
-  await assert.rejects(
-    f.review.publish(incoming.id, start.review_run, f.admin, request),
-    /kept source/,
-  );
-  await f.review.decide(
-    incoming.id,
-    {
-      run: start.review_run,
-      chunkId: incoming.chunkId,
-      decision: "use_incoming",
-      note: "Owner approves replacement",
-    },
+    { run: start.review_run, chunkId: incoming.chunkId, decision: "use_incoming", note: "Owner approves replacement" },
     f.admin,
     request,
   );
@@ -579,31 +600,24 @@ test("resource reading and document-scoped chat cannot recover superseded source
   assert.equal(chunks.items[0].is_searchable, true);
 });
 
-test("restarting a fully superseded scan clears its stale quarantine without restoring old guidance", async (t) => {
+test("a fully superseded document is inactive after publication and its old text stays out", async (t) => {
   const f = await fixture(t);
   const a = await f.document("Synthetic threshold: 1"),
     b = await f.document("Synthetic threshold: 2");
   const ra = await f.review.startReview(a.id, f.admin, request);
-  await f.review.startReview(b.id, f.admin, request);
   await f.review.compareNext(a.id, f.admin);
-  await f.review.compareNext(b.id, f.admin);
+  await f.review.compareNext(b.id, f.admin).catch(() => {});
   await f.review.decide(
     a.id,
-    {
-      run: ra.review_run,
-      chunkId: a.chunkId,
-      decision: "use_incoming",
-      note: "Owner confirms threshold 1",
-    },
+    { run: ra.review_run, chunkId: a.chunkId, decision: "use_incoming", note: "Owner confirms threshold 1" },
     f.admin,
     request,
   );
   await f.review.publish(a.id, ra.review_run, f.admin, request);
-  await f.review.startReview(b.id, f.admin, request);
+  assert.equal((await f.knowledge.getById(b.id)).status, "inactive");
   const rows = await f.retrieval.retrieve({ query: "threshold", departmentId: f.dept });
   assert.equal(rows.length, 1);
   assert.equal(rows[0].document_id, a.id);
-  assert.equal((await f.knowledge.getById(b.id)).status, "inactive");
 });
 
 test("an expired processing worker cannot overwrite or fail a newer attempt", async (t) => {

@@ -93,3 +93,35 @@ PASS: unresolved/uncertain content is unavailable, equivalent content is indexed
 - Vercel-target production build: **PASS** (`npm run build`).
 - Whitespace check: **PASS** (`git diff --check`).
 - Actual policy data, live model semantic accuracy, multi-connection lock contention, authenticated browser flow, test-database migration and Vercel Preview: **NOT VERIFIED**.
+
+## Follow-up: read-only existing scans, resolution, and live evidence
+
+**Read-only existing scans.** Starting, resuming or completing a scan of an existing approved document changes no status and no searchable content. Migration `0014_read_only_existing_scan.sql` removes the per-scan quarantine from `knowledge_search_chunks`. A flagged passage stays answerable and the chatbot discloses the disagreement instead. Visibility changes only when a reviewer's decision is published. Unpublished uploads remain protected because their passages are not searchable (`is_searchable = false`) until publication.
+
+**Decisions.** `unresolved` (new) withholds the incoming passage, leaves the existing source untouched, and keeps the conflict open. The chatbot discloses it. The reviewer UI offers it for every flagged passage, and it requires a written reason.
+
+**Replacements.** A replaced version is archived only when publication has removed every passage it still contributes. Otherwise only the affected passages are withheld, and unaffected content stays live. A document that a decision leaves with no searchable passage becomes `inactive`, and the audit record lists it in `emptied_document_ids`.
+
+**Resolving a library-scan finding.** Each finding links to the review of the document that owns the passage (`/admin/knowledge/:id#content-review`). A reviewer starts the document's review, compares it, and records a decision. This works for active documents, which the scan tests and the live check exercise.
+
+**Who may decide.** Taken from `src/lib/auth/permissions.ts` and the review routes:
+
+| Role | Can scan library | Can compare, decide and publish a document | Can replace shared or other-department guidance |
+|---|---|---|---|
+| team_leader | no | yes, for their own department only (`requireAdminArea`, scope checked in `documentForReview`) | no (`Forbidden`, enforced in `decide` and `publish`) |
+| admin | yes | yes, all departments | yes |
+| super_admin | yes | yes, all departments | yes |
+
+Unauthenticated requests are refused with 401. Whether team leaders should approve company knowledge at all is a business decision. This branch does not change it.
+
+**Live evidence** (`tests/live/chatbot-live.mjs`, run separately from `npm test`). Real embeddings, real classifier, real model responses, an isolated PGlite database, synthetic documents only. Results from one run:
+
+- Supported question ("leave days per month"): answered `2`, cited.
+- Known conflict (meeting-room booking window, 7 vs 14 days): answered that approved sources disagree, named both documents, gave neither value as the rule.
+- Unsupported question ("dinosaur parking"): fixed "Sorry" response, no invented policy.
+- Pending upload claiming 30 days: not searchable; its value and title never appeared in answers.
+- After a published `keep_existing` decision on the 14-day memo: answered `7 days`, no conflict notice.
+
+Observed limitation: similarity between a question and an unrelated passage in this small synthetic corpus is about 0.55–0.58, above the 0.5 disclosure floor. A conflict notice can therefore appear for unrelated questions. In the run the answers were still correct and did not mention the conflict. Over-disclosure is accepted because the opposite error would let the chatbot choose a side silently. The floor is configurable through `KNOWLEDGE_CONFIDENCE_FLOOR`.
+
+Observed inconsistency: the library scan classified the guide–memo pair as a conflict, but the per-document review of the memo classified the same passage as uncertain. Both use the same model but independent candidate sets and non-deterministic model output. A reviewer should treat findings from either as a prompt to decide, not as a verdict.

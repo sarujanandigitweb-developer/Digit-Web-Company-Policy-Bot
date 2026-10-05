@@ -96,6 +96,7 @@ async function fixture(t) {
   await db.exec(reviewMigration.slice(0, reviewMigration.indexOf("BEGIN;")));
   await db.exec(reviewMigration.slice(reviewMigration.indexOf("BEGIN;")));
   await db.exec(source("migrations/0013_conflict_scan.sql"));
+  await db.exec(source("migrations/0014_read_only_existing_scan.sql"));
 
   const query = async (executor, text, params = []) => {
     if (text.includes("pg_advisory_xact_lock")) return { rows: [], rowCount: 1 };

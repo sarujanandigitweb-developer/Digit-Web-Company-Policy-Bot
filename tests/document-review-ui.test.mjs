@@ -116,3 +116,9 @@ test("fully compared new information enables explicit publication", () => {
   assert.match(html, /new information, included when published/);
   assert.match(html, /<button>Publish reviewed content<\/button>/);
 });
+
+test("a flagged passage offers leave-unresolved as an explicit decision", () => {
+  const html = render(base);
+  assert.match(html, /Leave unresolved: withhold this passage and keep the conflict open/);
+  assert.match(html, /Keep existing guidance; exclude this entire passage/);
+});

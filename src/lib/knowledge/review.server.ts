@@ -98,39 +98,8 @@ export async function startReview(id: string, actor: SessionUser, request: Reque
       [id],
     );
     if (!count.rows[0].n) throw Conflict("No embedded passages to compare");
-    const existingSource =
-      doc.status === "active" ||
-      doc.review_state === "published" ||
-      doc.review_state === "none" ||
-      doc.review_origin === "existing";
-    if (existingSource) {
-      const retained = await tx.query(
-        `SELECT count(*)::int AS n FROM knowledge_chunks WHERE document_id=$1::uuid AND is_searchable AND embedding IS NOT NULL`,
-        [id],
-      );
-      if (!retained.rows[0].n) {
-        // Another approved correction may have retired all this document's
-        // passages. Clear its stale quarantine without resurrecting the source.
-        await tx.query(`DELETE FROM knowledge_chunk_reviews WHERE document_id=$1::uuid`, [id]);
-        await tx.query(
-          `UPDATE knowledge_documents SET status='inactive',review_state='published',review_run=NULL,
-            review_basis=NULL,review_error=NULL WHERE id=$1::uuid`,
-          [id],
-        );
-        await writeAudit(tx, {
-          actor,
-          action: "knowledge.review_started",
-          table: "knowledge_documents",
-          recordId: id,
-          newValue: {
-            status: "inactive",
-            reason: "No retained passages remain after approved corrections",
-          },
-          request,
-        });
-        return;
-      }
-    }
+    // Starting a scan never changes status or visibility. Passages of an existing
+    // approved document stay searchable; only a published decision can change them.
     await tx.query(`DELETE FROM knowledge_chunk_reviews WHERE document_id=$1::uuid`, [id]);
     await tx.query(
       `UPDATE knowledge_documents SET status=CASE WHEN status='active' THEN 'active'::document_status ELSE 'pending_review'::document_status END, review_state='queued',
@@ -383,9 +352,16 @@ export async function publish(id: string, run: string, actor: SessionUser, reque
       )
     )
       throw Conflict("Review decisions changed during embedding. Try publishing again.");
-    const excluded = new Set<string>();
+    // Passages this publication withholds. A keep_existing or unresolved row withholds
+    // its OWN incoming passage; a use_incoming row withholds the existing passages it
+    // lists. Nothing else is touched, so unrelated content keeps its visibility.
+    const ownWithheld = new Set(
+      rows
+        .filter((r) => r.decision === "keep_existing" || r.decision === "unresolved")
+        .map((r) => r.chunk_id),
+    );
+    const excluded = new Set<string>(ownWithheld);
     for (const row of rows) {
-      if (row.decision === "keep_existing") excluded.add(row.chunk_id);
       if (row.decision === "use_incoming") {
         for (const match of row.matches as ReviewMatch[]) {
           if (actor.role === "team_leader" && match.department_id !== actor.departmentId)
@@ -394,25 +370,23 @@ export async function publish(id: string, run: string, actor: SessionUser, reque
         }
       }
     }
-    // Never silently drop an incoming passage a reviewer explicitly retained.
-    if (rows.some((r) => excluded.has(r.chunk_id) && r.decision !== "keep_existing"))
+    // A passage the decisions keep must not also be withheld by another decision.
+    if (rows.some((r) => !ownWithheld.has(r.chunk_id) && excluded.has(r.chunk_id)))
       throw Conflict(
         "Decisions contradict each other: a retained incoming passage is also being superseded. Keep only the correct passage and review again.",
       );
-    // Keeping a duplicate source while simultaneously retiring that source
-    // would leave no canonical knowledge behind (notably replacement uploads).
+    // A duplicate kept on the existing side needs that side to remain searchable.
+    // Otherwise publishing would leave no canonical copy of the guidance.
     for (const row of rows.filter((r) => r.decision === "keep_existing")) {
-      if (
-        !(row.matches as ReviewMatch[]).some(
-          (m) =>
-            !excluded.has(m.chunk_id) &&
-            m.document_id !== current.supersedes_id &&
-            (m.document_id !== id ||
-              rows.some((r) => r.chunk_id === m.chunk_id && r.decision !== "keep_existing")),
-        )
-      ) {
+      const kept = (row.matches as ReviewMatch[]).some(
+        (m) =>
+          !excluded.has(m.chunk_id) &&
+          (m.document_id !== id ||
+            (rows.some((r) => r.chunk_id === m.chunk_id) && !ownWithheld.has(m.chunk_id))),
+      );
+      if (!kept) {
         throw Conflict(
-          "A kept source would also be removed. Retain the incoming passage instead, or cancel the replacement.",
+          "No retained source would remain for this duplicate. Retain the incoming passage instead, or review again.",
         );
       }
     }
@@ -430,10 +404,13 @@ export async function publish(id: string, run: string, actor: SessionUser, reque
       );
     }
     for (const chunkId of excluded) {
+      if (rows.some((r) => r.chunk_id === chunkId)) continue; // already set above
       await tx.query(`UPDATE knowledge_chunks SET is_searchable=false WHERE id=$1::uuid`, [
         chunkId,
       ]);
     }
+    // A replaced version is archived only when this publication has removed every
+    // passage it still contributes. Otherwise its unaffected passages stay live.
     if (current.supersedes_id) {
       const previous = await tx.query(
         `SELECT department_id FROM knowledge_documents WHERE id=$1::uuid FOR UPDATE`,
@@ -441,10 +418,26 @@ export async function publish(id: string, run: string, actor: SessionUser, reque
       );
       if (!previous.rowCount || previous.rows[0].department_id !== current.department_id)
         throw Conflict("Replacement source no longer belongs to this department");
-      await tx.query(`UPDATE knowledge_documents SET status='archived' WHERE id=$1::uuid`, [
-        current.supersedes_id,
-      ]);
+      await tx.query(
+        `UPDATE knowledge_documents SET status='archived' WHERE id=$1::uuid
+          AND NOT EXISTS (SELECT 1 FROM knowledge_chunks c WHERE c.document_id=$1::uuid
+                           AND c.is_searchable AND c.embedding IS NOT NULL)`,
+        [current.supersedes_id],
+      );
     }
+    // Any other approved document this publication emptied becomes inactive. This is
+    // an explicit, audited consequence of a reviewer decision, not a background change.
+    const emptied = excluded.size
+      ? await tx.query(
+          `UPDATE knowledge_documents d SET status='inactive'
+            WHERE d.status='active' AND d.id<>$1::uuid
+              AND d.id IN (SELECT document_id FROM knowledge_chunks WHERE id = ANY($2::uuid[]))
+              AND NOT EXISTS (SELECT 1 FROM knowledge_chunks c WHERE c.document_id=d.id
+                               AND c.is_searchable AND c.embedding IS NOT NULL)
+          RETURNING d.id`,
+          [id, [...excluded]],
+        )
+      : { rows: [] as Array<{ id: string }> };
     const included = rows.filter((r) => !excluded.has(r.chunk_id)).length;
     await tx.query(
       `UPDATE knowledge_documents SET status=$2::document_status,review_state='published',
@@ -460,6 +453,7 @@ export async function publish(id: string, run: string, actor: SessionUser, reque
         run,
         included,
         excluded_chunk_ids: [...excluded],
+        emptied_document_ids: emptied.rows.map((r) => r.id),
         supersedes_id: current.supersedes_id,
         decisions: rows.map((r) => ({
           chunk_id: r.chunk_id,

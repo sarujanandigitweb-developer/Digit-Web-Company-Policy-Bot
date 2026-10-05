@@ -173,8 +173,8 @@ export function ConflictScanView({
           </h2>
           <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             Compares active passages with related passages in the same or shared departments.
-            Read-only: nothing is changed or withheld. Resolve each finding from its document's
-            review.
+            Read-only: scanning changes nothing. Each finding is resolved in the review of the
+            document that owns the passage, where an authorized reviewer makes an explicit decision.
           </p>
         </div>
         <Button size="sm" className="h-9 gap-2" onClick={onStart} disabled={running}>
@@ -281,9 +281,10 @@ function SourceSide({ label, side }: { label: string; side: ScanSide }) {
       <Link
         to="/admin/knowledge/$id"
         params={{ id: side.document_id }}
+        hash="content-review"
         className="mt-2 inline-block text-xs font-medium text-[#2b6cf3] hover:underline"
       >
-        Open document
+        Resolve in this document's review
       </Link>
     </div>
   );

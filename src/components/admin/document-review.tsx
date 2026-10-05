@@ -92,7 +92,11 @@ export function DocumentReview({ document }: { document: KnowledgeDocument }) {
   }
 
   return (
-    <section className={`${CARD} space-y-4 p-5`} aria-label="Content comparison and approval">
+    <section
+      id="content-review"
+      className={`${CARD} scroll-mt-24 space-y-4 p-5`}
+      aria-label="Content comparison and approval"
+    >
       <h2 className="text-lg font-semibold">Content comparison and approval</h2>
       <p className="text-sm text-slate-600 dark:text-slate-300">
         Compare this document with approved knowledge. Different wording may mean the same thing;
@@ -105,7 +109,7 @@ export function DocumentReview({ document }: { document: KnowledgeDocument }) {
           {waiting && (
             <p className="rounded-lg bg-amber-50 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-100">
               {r.review_origin === "existing"
-                ? "This is an existing-document scan. Passages flagged as conflicting or uncertain are withheld from chatbot answers until this review is published."
+                ? "This is an existing-document scan. Scanning hides nothing: flagged passages stay available, and the chatbot tells users that approved sources disagree until a decision is published."
                 : "This upload is awaiting approval and is unavailable to the chatbot. The previous approved version remains available."}
             </p>
           )}
@@ -289,11 +293,20 @@ function Passage({
             Use this passage; supersede all listed overlapping passages
           </option>
           <option value="excerpt">Include only a selected new or corrected excerpt</option>
+          <option value="unresolved">
+            Leave unresolved: withhold this passage and keep the conflict open
+          </option>
           {item.kind !== "duplicate" && (
             <option value="distinct">Both apply to different contexts; keep both</option>
           )}
         </select>
       </label>
+      {decision === "unresolved" && (
+        <p className="text-sm text-amber-700 dark:text-amber-300">
+          This passage stays out of answers. The existing source is left as it is, and the chatbot
+          will tell users that approved sources disagree until a later decision is published.
+        </p>
+      )}
       {decision === "use_incoming" && (
         <p className="text-sm text-amber-700 dark:text-amber-300">
           This retires each listed passage in full. Check all conditions and unrelated rules before
