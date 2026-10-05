@@ -77,6 +77,17 @@ export function hasGlobalKnowledgeAccess(role: Role): boolean {
   return role === "admin" || role === "super_admin";
 }
 
+/**
+ * Roles that may open the admin console. Team leaders reach every console page
+ * except Users and Settings; those keep the narrower ADMIN_ONLY check below.
+ * The server guard (requireAdminArea) and the UI entry point both read this.
+ */
+export const ADMIN_AREA_ROLES: readonly Role[] = ["team_leader", "admin", "super_admin"];
+
+export function hasAdminAreaAccess(role: Role | null | undefined): boolean {
+  return !!role && ADMIN_AREA_ROLES.includes(role);
+}
+
 /** Roles a given role is allowed to assign. Only super admins can mint admins. */
 export function assignableRoles(role: Role): Role[] {
   if (role === "super_admin") return ["super_admin", "admin", "team_leader"];

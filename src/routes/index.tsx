@@ -19,9 +19,12 @@ import {
   Check,
   ChevronDown,
   Library,
+  LayoutDashboard,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { normalizeAnswer } from "@/lib/format-answer";
+import { hasAdminAreaAccess } from "@/lib/auth/permissions";
+import { useMe } from "@/hooks/use-me";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -418,6 +421,11 @@ function Header({
   departmentName: string | null;
   onChangeDepartment: () => void;
 }) {
+  // Shown only to roles the admin console already admits. The /admin layout and
+  // every admin API route enforce the same rule server-side; this is just the entry point.
+  const { data: me } = useMe();
+  const showAdmin = hasAdminAreaAccess(me?.role);
+
   return (
     <header
       className="fixed inset-x-0 top-0 z-40 h-[72px] border-b border-white/10 backdrop-blur-xl"
@@ -483,6 +491,17 @@ function Header({
             <Library className="h-3.5 w-3.5" aria-hidden="true" />
             Document Library
           </Link>
+          {showAdmin && (
+            <Link
+              to="/admin"
+              onMouseEnter={onHover}
+              aria-label="Admin console"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/85 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">Admin</span>
+            </Link>
+          )}
           <IconBtn onClick={() => setSound(!sound)} onHover={onHover} label="Toggle sound">
             {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </IconBtn>

@@ -2,7 +2,7 @@ import { createRemoteJWKSet, jwtVerify } from "jose";
 import { sql } from "@/lib/db/client.server";
 import { Forbidden, Unauthorized } from "@/lib/http/errors";
 import type { Permission, Role } from "./permissions";
-import { can } from "./permissions";
+import { ADMIN_AREA_ROLES, can } from "./permissions";
 
 /**
  * Session handling for Neon Auth.
@@ -120,7 +120,7 @@ export async function requirePermission(
   return user;
 }
 
-export async function requireRole(request: Request, roles: Role[]): Promise<SessionUser> {
+export async function requireRole(request: Request, roles: readonly Role[]): Promise<SessionUser> {
   const user = await requireAuth(request);
   if (!roles.includes(user.role)) throw Forbidden();
   return user;
@@ -130,8 +130,7 @@ export async function requireRole(request: Request, roles: Role[]): Promise<Sess
  * Admin-console access. Team leaders reach every page except Users and Settings;
  * those two keep requireAdmin. Use this for the pages a team leader may open.
  */
-export const requireAdminArea = (request: Request) =>
-  requireRole(request, ["team_leader", "admin", "super_admin"]);
+export const requireAdminArea = (request: Request) => requireRole(request, ADMIN_AREA_ROLES);
 
 /** Management side — admins and super admins. Gates Users and Settings. */
 export const requireAdmin = (request: Request) => requireRole(request, ["admin", "super_admin"]);
