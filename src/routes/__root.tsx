@@ -35,7 +35,9 @@ function NotFoundComponent() {
   );
 }
 
-function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
+// `error` is `unknown`, not `Error` — @tanstack/react-router's ErrorRouteComponent
+// widened this type (1.170.41) because anything can be thrown, not just an Error.
+function ErrorComponent({ error, reset }: { error: unknown; reset: () => void }) {
   console.error(error);
   const router = useRouter();
   useEffect(() => {
