@@ -65,6 +65,24 @@ export async function resolveDepartment(value: string | null | undefined): Promi
   return rows[0]?.id ?? null;
 }
 
+/**
+ * The exact passages behind one answer, numbered as the prompt numbered them.
+ * The browser resolves the model's [n] markers against this list and nothing else.
+ * Built from the same `chunks` that renderChunk used, so the numbers always agree.
+ */
+export function citationSources(chunks: RetrievedChunk[]) {
+  return chunks.map((chunk, index) => ({
+    n: index + 1,
+    chunkId: chunk.chunk_id,
+    documentId: chunk.document_id,
+    title: chunk.document_title,
+    department: chunk.department_name,
+    heading: chunk.heading,
+    pageNumber: chunk.page_number,
+    excerpt: chunk.content.trim(),
+  }));
+}
+
 function renderChunk(chunk: RetrievedChunk, index: number): string {
   const location = [chunk.heading, chunk.page_number !== null ? `page ${chunk.page_number}` : null]
     .filter(Boolean)

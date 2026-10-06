@@ -19,9 +19,19 @@ import {
   Check,
   ChevronDown,
   Library,
+  LayoutDashboard,
 } from "lucide-react";
 import { BrandLogo } from "@/components/brand-logo";
 import { normalizeAnswer } from "@/lib/format-answer";
+import { hasAdminAreaAccess, hasGlobalKnowledgeAccess } from "@/lib/auth/permissions";
+import { useMe } from "@/hooks/use-me";
+import {
+  citationNumberFromHref,
+  citationSourcesFromParts,
+  linkCitations,
+  type CitationSource,
+} from "@/lib/citations";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 
 export const Route = createFileRoute("/")({
   component: Index,
@@ -220,6 +230,11 @@ function Index() {
   const bottomRef = useRef<HTMLDivElement>(null);
 
   const isLoading = status === "submitted" || status === "streaming";
+  // Waiting means: request sent, or streaming but no answer text has arrived yet.
+  const lastMessage = messages[messages.length - 1];
+  const answerStarted =
+    !!lastMessage && lastMessage.role === "assistant" && renderText(lastMessage).trim() !== "";
+  const awaitingAnswer = status === "submitted" || classifying || (status === "streaming" && !answerStarted);
   const wasLoading = useRef(false);
 
   useEffect(() => {
@@ -349,7 +364,7 @@ function Index() {
                     />
                   ))}
                 </AnimatePresence>
-                {(status === "submitted" || classifying) && <ThinkingIndicator />}
+                {awaitingAnswer && <ThinkingIndicator />}
                 {(() => {
                   // Follow-ups for the most recent answer, shown once it finishes.
                   if (isLoading || picker) return null;
@@ -418,6 +433,11 @@ function Header({
   departmentName: string | null;
   onChangeDepartment: () => void;
 }) {
+  // Shown only to roles the admin console already admits. The /admin layout and
+  // every admin API route enforce the same rule server-side; this is just the entry point.
+  const { data: me } = useMe();
+  const showAdmin = hasAdminAreaAccess(me?.role);
+
   return (
     <header
       className="fixed inset-x-0 top-0 z-40 h-[72px] border-b border-white/10 backdrop-blur-xl"
@@ -483,6 +503,17 @@ function Header({
             <Library className="h-3.5 w-3.5" aria-hidden="true" />
             Document Library
           </Link>
+          {showAdmin && (
+            <Link
+              to="/admin"
+              onMouseEnter={onHover}
+              aria-label="Admin console"
+              className="inline-flex items-center gap-1.5 rounded-full border border-white/15 bg-white/5 px-3 py-1.5 text-xs font-medium text-white/85 transition hover:bg-white/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white/40"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" aria-hidden="true" />
+              <span className="hidden sm:inline">Admin</span>
+            </Link>
+          )}
           <IconBtn onClick={() => setSound(!sound)} onHover={onHover} label="Toggle sound">
             {sound ? <Volume2 className="h-4 w-4" /> : <VolumeX className="h-4 w-4" />}
           </IconBtn>
@@ -788,7 +819,18 @@ function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreami
     );
   }
 
+  // An assistant message with no text yet is not content. The loading indicator
+  // covers the wait; this avoids a blank or "…" bubble.
+  if (text.trim() === "") return null;
+
   const sources = extractSources(text);
+  // Only this message's own numbered passages. A marker with no matching entry stays text.
+  const citations = citationSourcesFromParts(message.parts);
+  const citationByNumber = new Map(citations.map((c) => [c.n, c]));
+  const answerText = normalizeAnswer(shown);
+  const linkedText = citations.length
+    ? linkCitations(answerText, new Set(citationByNumber.keys()))
+    : answerText;
 
   return (
     <motion.div
@@ -800,7 +842,18 @@ function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreami
       <BrandLogo className="mt-1 h-9 w-9 shadow" />
       <div className="min-w-0 flex-1 rounded-2xl rounded-tl-md border border-slate-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-slate-900/70">
         <div className="prose prose-sm max-w-none leading-[1.7] text-slate-800 dark:prose-invert dark:text-slate-100">
-          <ReactMarkdown>{normalizeAnswer(shown) || "…"}</ReactMarkdown>
+          <ReactMarkdown
+            components={{
+              a({ href, children }) {
+                const n = citationNumberFromHref(href);
+                const source = n === null ? undefined : citationByNumber.get(n);
+                if (n === null || !source) return <>{children}</>;
+                return <CitationButton n={n} source={source} />;
+              },
+            }}
+          >
+            {linkedText}
+          </ReactMarkdown>
           {isStreaming && (
             <span className="ml-0.5 inline-block h-4 w-[3px] translate-y-0.5 animate-pulse bg-slate-500 align-middle dark:bg-slate-300" />
           )}
@@ -825,6 +878,55 @@ function MessageBubble({ message, isStreaming }: { message: UIMessage; isStreami
         )}
       </div>
     </motion.div>
+  );
+}
+
+/**
+ * One numbered citation. A popover, so it is keyboard reachable (focus, Enter or
+ * Space to open, Escape to close). The document link appears only for roles that
+ * can open any document in the admin console; that page enforces access itself.
+ */
+function CitationButton({ n, source }: { n: number; source: CitationSource }) {
+  const { data: me } = useMe();
+  const canOpenDocument = hasGlobalKnowledgeAccess(me?.role ?? "team_leader");
+  const location = [
+    source.heading,
+    source.pageNumber !== null ? `page ${source.pageNumber}` : null,
+  ]
+    .filter(Boolean)
+    .join(", ");
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Source ${n}: ${source.title}`}
+          className="mx-px inline-flex items-center rounded px-0.5 align-baseline text-[0.85em] font-semibold text-[#2b6cf3] hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#2b6cf3]"
+        >
+          [{n}]
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-80 space-y-2 p-3 text-sm">
+        <p className="font-semibold text-slate-900 dark:text-white">{source.title}</p>
+        {(source.department || location) && (
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            {[source.department, location].filter(Boolean).join(" · ")}
+          </p>
+        )}
+        <blockquote className="max-h-56 overflow-y-auto whitespace-pre-line border-l-2 border-[#2b6cf3]/50 pl-3 text-xs leading-relaxed text-slate-700 dark:text-slate-300">
+          {source.excerpt}
+        </blockquote>
+        {canOpenDocument && (
+          <Link
+            to="/admin/knowledge/$id"
+            params={{ id: source.documentId }}
+            className="inline-block text-xs font-medium text-[#2b6cf3] hover:underline"
+          >
+            Open in admin console
+          </Link>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 
