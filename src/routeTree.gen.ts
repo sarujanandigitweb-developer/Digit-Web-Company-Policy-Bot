@@ -9,73 +9,63 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
-import { Route as LoginRouteImport } from './routes/login'
-import { Route as LibraryRouteImport } from './routes/library'
-import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
-import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as AdminRouteImport } from './routes/admin'
+import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
+import { Route as LibraryRouteImport } from './routes/library'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
-import { Route as ApiMeRouteImport } from './routes/api/me'
-import { Route as ApiDepartmentsRouteImport } from './routes/api/departments'
-import { Route as ApiChatRouteImport } from './routes/api/chat'
-import { Route as AdminUsersRouteImport } from './routes/admin/users'
-import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
-import { Route as AdminSearchRouteImport } from './routes/admin/search'
-import { Route as AdminLibraryRouteImport } from './routes/admin/library'
-import { Route as AdminKnowledgeGapsRouteImport } from './routes/admin/knowledge-gaps'
-import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
 import { Route as AdminAnalyticsRouteImport } from './routes/admin/analytics'
-import { Route as AdminKnowledgeIndexRouteImport } from './routes/admin/knowledge.index'
+import { Route as AdminDepartmentsRouteImport } from './routes/admin/departments'
+import { Route as AdminKnowledgeGapsRouteImport } from './routes/admin/knowledge-gaps'
+import { Route as AdminLibraryRouteImport } from './routes/admin/library'
+import { Route as AdminSearchRouteImport } from './routes/admin/search'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
+import { Route as ApiChatRouteImport } from './routes/api/chat'
+import { Route as ApiDepartmentsRouteImport } from './routes/api/departments'
+import { Route as ApiMeRouteImport } from './routes/api/me'
 import { Route as AdminConversationsIndexRouteImport } from './routes/admin/conversations.index'
-import { Route as ApiLibraryTreeRouteImport } from './routes/api/library.tree'
-import { Route as ApiLibraryAskRouteImport } from './routes/api/library.ask'
-import { Route as ApiCronConversationsRouteImport } from './routes/api/cron.conversations'
-import { Route as ApiChatIntentRouteImport } from './routes/api/chat.intent'
-import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
-import { Route as ApiAdminSettingsRouteImport } from './routes/api/admin/settings'
-import { Route as ApiAdminKnowledgeRouteImport } from './routes/api/admin/knowledge'
-import { Route as ApiAdminGapsRouteImport } from './routes/api/admin/gaps'
-import { Route as ApiAdminDepartmentsRouteImport } from './routes/api/admin/departments'
-import { Route as ApiAdminConversationsRouteImport } from './routes/api/admin/conversations'
-import { Route as ApiAdminActivityRouteImport } from './routes/api/admin/activity'
-import { Route as AdminKnowledgeIdRouteImport } from './routes/admin/knowledge.$id'
 import { Route as AdminConversationsIdRouteImport } from './routes/admin/conversations.$id'
-import { Route as ApiLibraryFileIdRouteImport } from './routes/api/library.file.$id'
-import { Route as ApiLibraryDocumentIdRouteImport } from './routes/api/library.document.$id'
-import { Route as ApiAuthResetVerifyRouteImport } from './routes/api/auth/reset.verify'
-import { Route as ApiAuthResetSendRouteImport } from './routes/api/auth/reset.send'
-import { Route as ApiAuthResetConfirmRouteImport } from './routes/api/auth/reset.confirm'
-import { Route as ApiAdminUsersIdRouteImport } from './routes/api/admin/users.$id'
-import { Route as ApiAdminSystemStatusRouteImport } from './routes/api/admin/system.status'
-import { Route as ApiAdminLibraryTreeRouteImport } from './routes/api/admin/library.tree'
-import { Route as ApiAdminLibraryFoldersRouteImport } from './routes/api/admin/library.folders'
-import { Route as ApiAdminLibraryChatRouteImport } from './routes/api/admin/library.chat'
-import { Route as ApiAdminKnowledgeStatsRouteImport } from './routes/api/admin/knowledge.stats'
-import { Route as ApiAdminKnowledgeSearchRouteImport } from './routes/api/admin/knowledge.search'
-import { Route as ApiAdminKnowledgeIdRouteImport } from './routes/api/admin/knowledge.$id'
-import { Route as ApiAdminGapsBulkDeleteRouteImport } from './routes/api/admin/gaps.bulk-delete'
-import { Route as ApiAdminGapsIdRouteImport } from './routes/api/admin/gaps.$id'
-import { Route as ApiAdminDepartmentsIdRouteImport } from './routes/api/admin/departments.$id'
-import { Route as ApiAdminConversationsBulkDeleteRouteImport } from './routes/api/admin/conversations.bulk-delete'
-import { Route as ApiAdminConversationsIdRouteImport } from './routes/api/admin/conversations.$id'
+import { Route as AdminKnowledgeIndexRouteImport } from './routes/admin/knowledge.index'
+import { Route as AdminKnowledgeIdRouteImport } from './routes/admin/knowledge.$id'
+import { Route as ApiAdminActivityRouteImport } from './routes/api/admin/activity'
+import { Route as ApiAdminConversationsRouteImport } from './routes/api/admin/conversations'
+import { Route as ApiAdminDepartmentsRouteImport } from './routes/api/admin/departments'
+import { Route as ApiAdminGapsRouteImport } from './routes/api/admin/gaps'
+import { Route as ApiAdminKnowledgeRouteImport } from './routes/api/admin/knowledge'
+import { Route as ApiAdminSettingsRouteImport } from './routes/api/admin/settings'
+import { Route as ApiAdminUsersRouteImport } from './routes/api/admin/users'
+import { Route as ApiChatIntentRouteImport } from './routes/api/chat.intent'
+import { Route as ApiCronConversationsRouteImport } from './routes/api/cron.conversations'
+import { Route as ApiLibraryAskRouteImport } from './routes/api/library.ask'
+import { Route as ApiLibraryTreeRouteImport } from './routes/api/library.tree'
 import { Route as ApiAdminAnalyticsKnowledgeRouteImport } from './routes/api/admin/analytics.knowledge'
-import { Route as ApiAdminLibraryResourcesIdRouteImport } from './routes/api/admin/library.resources.$id'
-import { Route as ApiAdminKnowledgeIdRetryRouteImport } from './routes/api/admin/knowledge.$id.retry'
+import { Route as ApiAdminConversationsIdRouteImport } from './routes/api/admin/conversations.$id'
+import { Route as ApiAdminConversationsBulkDeleteRouteImport } from './routes/api/admin/conversations.bulk-delete'
+import { Route as ApiAdminDepartmentsIdRouteImport } from './routes/api/admin/departments.$id'
+import { Route as ApiAdminGapsIdRouteImport } from './routes/api/admin/gaps.$id'
+import { Route as ApiAdminGapsBulkDeleteRouteImport } from './routes/api/admin/gaps.bulk-delete'
+import { Route as ApiAdminKnowledgeIdRouteImport } from './routes/api/admin/knowledge.$id'
+import { Route as ApiAdminKnowledgeSearchRouteImport } from './routes/api/admin/knowledge.search'
+import { Route as ApiAdminKnowledgeStatsRouteImport } from './routes/api/admin/knowledge.stats'
+import { Route as ApiAdminLibraryChatRouteImport } from './routes/api/admin/library.chat'
+import { Route as ApiAdminLibraryFoldersRouteImport } from './routes/api/admin/library.folders'
+import { Route as ApiAdminLibraryTreeRouteImport } from './routes/api/admin/library.tree'
+import { Route as ApiAdminSystemStatusRouteImport } from './routes/api/admin/system.status'
+import { Route as ApiAdminUsersIdRouteImport } from './routes/api/admin/users.$id'
+import { Route as ApiAuthResetConfirmRouteImport } from './routes/api/auth/reset.confirm'
+import { Route as ApiAuthResetSendRouteImport } from './routes/api/auth/reset.send'
+import { Route as ApiAuthResetVerifyRouteImport } from './routes/api/auth/reset.verify'
+import { Route as ApiLibraryDocumentIdRouteImport } from './routes/api/library.document.$id'
+import { Route as ApiLibraryFileIdRouteImport } from './routes/api/library.file.$id'
 import { Route as ApiAdminKnowledgeIdChunksRouteImport } from './routes/api/admin/knowledge.$id.chunks'
+import { Route as ApiAdminKnowledgeIdRetryRouteImport } from './routes/api/admin/knowledge.$id.retry'
+import { Route as ApiAdminLibraryResourcesIdRouteImport } from './routes/api/admin/library.resources.$id'
 
-const LoginRoute = LoginRouteImport.update({
-  id: '/login',
-  path: '/login',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const LibraryRoute = LibraryRouteImport.update({
-  id: '/library',
-  path: '/library',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
-  id: '/forgot-password',
-  path: '/forgot-password',
+const IndexRoute = IndexRouteImport.update({
+  id: '/',
+  path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -83,9 +73,19 @@ const AdminRoute = AdminRouteImport.update({
   path: '/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
-const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
+  id: '/forgot-password',
+  path: '/forgot-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LibraryRoute = LibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -93,44 +93,9 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
-const ApiMeRoute = ApiMeRouteImport.update({
-  id: '/api/me',
-  path: '/api/me',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiDepartmentsRoute = ApiDepartmentsRouteImport.update({
-  id: '/api/departments',
-  path: '/api/departments',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiChatRoute = ApiChatRouteImport.update({
-  id: '/api/chat',
-  path: '/api/chat',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/users',
-  path: '/users',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/settings',
-  path: '/settings',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminSearchRoute = AdminSearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminLibraryRoute = AdminLibraryRouteImport.update({
-  id: '/library',
-  path: '/library',
-  getParentRoute: () => AdminRoute,
-} as any)
-const AdminKnowledgeGapsRoute = AdminKnowledgeGapsRouteImport.update({
-  id: '/knowledge-gaps',
-  path: '/knowledge-gaps',
+const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
@@ -138,79 +103,49 @@ const AdminDepartmentsRoute = AdminDepartmentsRouteImport.update({
   path: '/departments',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminAnalyticsRoute = AdminAnalyticsRouteImport.update({
-  id: '/analytics',
-  path: '/analytics',
+const AdminKnowledgeGapsRoute = AdminKnowledgeGapsRouteImport.update({
+  id: '/knowledge-gaps',
+  path: '/knowledge-gaps',
   getParentRoute: () => AdminRoute,
 } as any)
-const AdminKnowledgeIndexRoute = AdminKnowledgeIndexRouteImport.update({
-  id: '/knowledge/',
-  path: '/knowledge/',
+const AdminLibraryRoute = AdminLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => AdminRoute,
+} as any)
+const AdminSearchRoute = AdminSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
+} as any)
+const ApiChatRoute = ApiChatRouteImport.update({
+  id: '/api/chat',
+  path: '/api/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDepartmentsRoute = ApiDepartmentsRouteImport.update({
+  id: '/api/departments',
+  path: '/api/departments',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiMeRoute = ApiMeRouteImport.update({
+  id: '/api/me',
+  path: '/api/me',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AdminConversationsIndexRoute = AdminConversationsIndexRouteImport.update({
   id: '/conversations/',
   path: '/conversations/',
-  getParentRoute: () => AdminRoute,
-} as any)
-const ApiLibraryTreeRoute = ApiLibraryTreeRouteImport.update({
-  id: '/api/library/tree',
-  path: '/api/library/tree',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiLibraryAskRoute = ApiLibraryAskRouteImport.update({
-  id: '/api/library/ask',
-  path: '/api/library/ask',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiCronConversationsRoute = ApiCronConversationsRouteImport.update({
-  id: '/api/cron/conversations',
-  path: '/api/cron/conversations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiChatIntentRoute = ApiChatIntentRouteImport.update({
-  id: '/intent',
-  path: '/intent',
-  getParentRoute: () => ApiChatRoute,
-} as any)
-const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
-  id: '/api/admin/users',
-  path: '/api/admin/users',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAdminSettingsRoute = ApiAdminSettingsRouteImport.update({
-  id: '/api/admin/settings',
-  path: '/api/admin/settings',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAdminKnowledgeRoute = ApiAdminKnowledgeRouteImport.update({
-  id: '/api/admin/knowledge',
-  path: '/api/admin/knowledge',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAdminGapsRoute = ApiAdminGapsRouteImport.update({
-  id: '/api/admin/gaps',
-  path: '/api/admin/gaps',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAdminDepartmentsRoute = ApiAdminDepartmentsRouteImport.update({
-  id: '/api/admin/departments',
-  path: '/api/admin/departments',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAdminConversationsRoute = ApiAdminConversationsRouteImport.update({
-  id: '/api/admin/conversations',
-  path: '/api/admin/conversations',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ApiAdminActivityRoute = ApiAdminActivityRouteImport.update({
-  id: '/api/admin/activity',
-  path: '/api/admin/activity',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const AdminKnowledgeIdRoute = AdminKnowledgeIdRouteImport.update({
-  id: '/knowledge/$id',
-  path: '/knowledge/$id',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminConversationsIdRoute = AdminConversationsIdRouteImport.update({
@@ -218,96 +153,70 @@ const AdminConversationsIdRoute = AdminConversationsIdRouteImport.update({
   path: '/conversations/$id',
   getParentRoute: () => AdminRoute,
 } as any)
-const ApiLibraryFileIdRoute = ApiLibraryFileIdRouteImport.update({
-  id: '/api/library/file/$id',
-  path: '/api/library/file/$id',
+const AdminKnowledgeIndexRoute = AdminKnowledgeIndexRouteImport.update({
+  id: '/knowledge/',
+  path: '/knowledge/',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminKnowledgeIdRoute = AdminKnowledgeIdRouteImport.update({
+  id: '/knowledge/$id',
+  path: '/knowledge/$id',
+  getParentRoute: () => AdminRoute,
+} as any)
+const ApiAdminActivityRoute = ApiAdminActivityRouteImport.update({
+  id: '/api/admin/activity',
+  path: '/api/admin/activity',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiLibraryDocumentIdRoute = ApiLibraryDocumentIdRouteImport.update({
-  id: '/api/library/document/$id',
-  path: '/api/library/document/$id',
+const ApiAdminConversationsRoute = ApiAdminConversationsRouteImport.update({
+  id: '/api/admin/conversations',
+  path: '/api/admin/conversations',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthResetVerifyRoute = ApiAuthResetVerifyRouteImport.update({
-  id: '/api/auth/reset/verify',
-  path: '/api/auth/reset/verify',
+const ApiAdminDepartmentsRoute = ApiAdminDepartmentsRouteImport.update({
+  id: '/api/admin/departments',
+  path: '/api/admin/departments',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthResetSendRoute = ApiAuthResetSendRouteImport.update({
-  id: '/api/auth/reset/send',
-  path: '/api/auth/reset/send',
+const ApiAdminGapsRoute = ApiAdminGapsRouteImport.update({
+  id: '/api/admin/gaps',
+  path: '/api/admin/gaps',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAuthResetConfirmRoute = ApiAuthResetConfirmRouteImport.update({
-  id: '/api/auth/reset/confirm',
-  path: '/api/auth/reset/confirm',
+const ApiAdminKnowledgeRoute = ApiAdminKnowledgeRouteImport.update({
+  id: '/api/admin/knowledge',
+  path: '/api/admin/knowledge',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAdminUsersIdRoute = ApiAdminUsersIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ApiAdminUsersRoute,
-} as any)
-const ApiAdminSystemStatusRoute = ApiAdminSystemStatusRouteImport.update({
-  id: '/api/admin/system/status',
-  path: '/api/admin/system/status',
+const ApiAdminSettingsRoute = ApiAdminSettingsRouteImport.update({
+  id: '/api/admin/settings',
+  path: '/api/admin/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAdminLibraryTreeRoute = ApiAdminLibraryTreeRouteImport.update({
-  id: '/api/admin/library/tree',
-  path: '/api/admin/library/tree',
+const ApiAdminUsersRoute = ApiAdminUsersRouteImport.update({
+  id: '/api/admin/users',
+  path: '/api/admin/users',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAdminLibraryFoldersRoute = ApiAdminLibraryFoldersRouteImport.update({
-  id: '/api/admin/library/folders',
-  path: '/api/admin/library/folders',
+const ApiChatIntentRoute = ApiChatIntentRouteImport.update({
+  id: '/intent',
+  path: '/intent',
+  getParentRoute: () => ApiChatRoute,
+} as any)
+const ApiCronConversationsRoute = ApiCronConversationsRouteImport.update({
+  id: '/api/cron/conversations',
+  path: '/api/cron/conversations',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAdminLibraryChatRoute = ApiAdminLibraryChatRouteImport.update({
-  id: '/api/admin/library/chat',
-  path: '/api/admin/library/chat',
+const ApiLibraryAskRoute = ApiLibraryAskRouteImport.update({
+  id: '/api/library/ask',
+  path: '/api/library/ask',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ApiAdminKnowledgeStatsRoute = ApiAdminKnowledgeStatsRouteImport.update({
-  id: '/stats',
-  path: '/stats',
-  getParentRoute: () => ApiAdminKnowledgeRoute,
-} as any)
-const ApiAdminKnowledgeSearchRoute = ApiAdminKnowledgeSearchRouteImport.update({
-  id: '/search',
-  path: '/search',
-  getParentRoute: () => ApiAdminKnowledgeRoute,
-} as any)
-const ApiAdminKnowledgeIdRoute = ApiAdminKnowledgeIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ApiAdminKnowledgeRoute,
-} as any)
-const ApiAdminGapsBulkDeleteRoute = ApiAdminGapsBulkDeleteRouteImport.update({
-  id: '/bulk-delete',
-  path: '/bulk-delete',
-  getParentRoute: () => ApiAdminGapsRoute,
-} as any)
-const ApiAdminGapsIdRoute = ApiAdminGapsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ApiAdminGapsRoute,
-} as any)
-const ApiAdminDepartmentsIdRoute = ApiAdminDepartmentsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ApiAdminDepartmentsRoute,
-} as any)
-const ApiAdminConversationsBulkDeleteRoute =
-  ApiAdminConversationsBulkDeleteRouteImport.update({
-    id: '/bulk-delete',
-    path: '/bulk-delete',
-    getParentRoute: () => ApiAdminConversationsRoute,
-  } as any)
-const ApiAdminConversationsIdRoute = ApiAdminConversationsIdRouteImport.update({
-  id: '/$id',
-  path: '/$id',
-  getParentRoute: () => ApiAdminConversationsRoute,
+const ApiLibraryTreeRoute = ApiLibraryTreeRouteImport.update({
+  id: '/api/library/tree',
+  path: '/api/library/tree',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAdminAnalyticsKnowledgeRoute =
   ApiAdminAnalyticsKnowledgeRouteImport.update({
@@ -315,11 +224,102 @@ const ApiAdminAnalyticsKnowledgeRoute =
     path: '/api/admin/analytics/knowledge',
     getParentRoute: () => rootRouteImport,
   } as any)
-const ApiAdminLibraryResourcesIdRoute =
-  ApiAdminLibraryResourcesIdRouteImport.update({
-    id: '/api/admin/library/resources/$id',
-    path: '/api/admin/library/resources/$id',
-    getParentRoute: () => rootRouteImport,
+const ApiAdminConversationsIdRoute = ApiAdminConversationsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAdminConversationsRoute,
+} as any)
+const ApiAdminConversationsBulkDeleteRoute =
+  ApiAdminConversationsBulkDeleteRouteImport.update({
+    id: '/bulk-delete',
+    path: '/bulk-delete',
+    getParentRoute: () => ApiAdminConversationsRoute,
+  } as any)
+const ApiAdminDepartmentsIdRoute = ApiAdminDepartmentsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAdminDepartmentsRoute,
+} as any)
+const ApiAdminGapsIdRoute = ApiAdminGapsIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAdminGapsRoute,
+} as any)
+const ApiAdminGapsBulkDeleteRoute = ApiAdminGapsBulkDeleteRouteImport.update({
+  id: '/bulk-delete',
+  path: '/bulk-delete',
+  getParentRoute: () => ApiAdminGapsRoute,
+} as any)
+const ApiAdminKnowledgeIdRoute = ApiAdminKnowledgeIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAdminKnowledgeRoute,
+} as any)
+const ApiAdminKnowledgeSearchRoute = ApiAdminKnowledgeSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
+  getParentRoute: () => ApiAdminKnowledgeRoute,
+} as any)
+const ApiAdminKnowledgeStatsRoute = ApiAdminKnowledgeStatsRouteImport.update({
+  id: '/stats',
+  path: '/stats',
+  getParentRoute: () => ApiAdminKnowledgeRoute,
+} as any)
+const ApiAdminLibraryChatRoute = ApiAdminLibraryChatRouteImport.update({
+  id: '/api/admin/library/chat',
+  path: '/api/admin/library/chat',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminLibraryFoldersRoute = ApiAdminLibraryFoldersRouteImport.update({
+  id: '/api/admin/library/folders',
+  path: '/api/admin/library/folders',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminLibraryTreeRoute = ApiAdminLibraryTreeRouteImport.update({
+  id: '/api/admin/library/tree',
+  path: '/api/admin/library/tree',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminSystemStatusRoute = ApiAdminSystemStatusRouteImport.update({
+  id: '/api/admin/system/status',
+  path: '/api/admin/system/status',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminUsersIdRoute = ApiAdminUsersIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAdminUsersRoute,
+} as any)
+const ApiAuthResetConfirmRoute = ApiAuthResetConfirmRouteImport.update({
+  id: '/api/auth/reset/confirm',
+  path: '/api/auth/reset/confirm',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthResetSendRoute = ApiAuthResetSendRouteImport.update({
+  id: '/api/auth/reset/send',
+  path: '/api/auth/reset/send',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthResetVerifyRoute = ApiAuthResetVerifyRouteImport.update({
+  id: '/api/auth/reset/verify',
+  path: '/api/auth/reset/verify',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLibraryDocumentIdRoute = ApiLibraryDocumentIdRouteImport.update({
+  id: '/api/library/document/$id',
+  path: '/api/library/document/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLibraryFileIdRoute = ApiLibraryFileIdRouteImport.update({
+  id: '/api/library/file/$id',
+  path: '/api/library/file/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAdminKnowledgeIdChunksRoute =
+  ApiAdminKnowledgeIdChunksRouteImport.update({
+    id: '/chunks',
+    path: '/chunks',
+    getParentRoute: () => ApiAdminKnowledgeIdRoute,
   } as any)
 const ApiAdminKnowledgeIdRetryRoute =
   ApiAdminKnowledgeIdRetryRouteImport.update({
@@ -327,11 +327,11 @@ const ApiAdminKnowledgeIdRetryRoute =
     path: '/retry',
     getParentRoute: () => ApiAdminKnowledgeIdRoute,
   } as any)
-const ApiAdminKnowledgeIdChunksRoute =
-  ApiAdminKnowledgeIdChunksRouteImport.update({
-    id: '/chunks',
-    path: '/chunks',
-    getParentRoute: () => ApiAdminKnowledgeIdRoute,
+const ApiAdminLibraryResourcesIdRoute =
+  ApiAdminLibraryResourcesIdRouteImport.update({
+    id: '/api/admin/library/resources/$id',
+    path: '/api/admin/library/resources/$id',
+    getParentRoute: () => rootRouteImport,
   } as any)
 
 export interface FileRoutesByFullPath {
@@ -700,25 +700,11 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/login': {
-      id: '/login'
-      path: '/login'
-      fullPath: '/login'
-      preLoaderRoute: typeof LoginRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/library': {
-      id: '/library'
-      path: '/library'
-      fullPath: '/library'
-      preLoaderRoute: typeof LibraryRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/forgot-password': {
-      id: '/forgot-password'
-      path: '/forgot-password'
-      fullPath: '/forgot-password'
-      preLoaderRoute: typeof ForgotPasswordRouteImport
+    '/': {
+      id: '/'
+      path: '/'
+      fullPath: '/'
+      preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -728,11 +714,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
+    '/forgot-password': {
+      id: '/forgot-password'
+      path: '/forgot-password'
+      fullPath: '/forgot-password'
+      preLoaderRoute: typeof ForgotPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/library': {
+      id: '/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof LibraryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -742,60 +742,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/api/me': {
-      id: '/api/me'
-      path: '/api/me'
-      fullPath: '/api/me'
-      preLoaderRoute: typeof ApiMeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/departments': {
-      id: '/api/departments'
-      path: '/api/departments'
-      fullPath: '/api/departments'
-      preLoaderRoute: typeof ApiDepartmentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/chat': {
-      id: '/api/chat'
-      path: '/api/chat'
-      fullPath: '/api/chat'
-      preLoaderRoute: typeof ApiChatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/users': {
-      id: '/admin/users'
-      path: '/users'
-      fullPath: '/admin/users'
-      preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/settings': {
-      id: '/admin/settings'
-      path: '/settings'
-      fullPath: '/admin/settings'
-      preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/search': {
-      id: '/admin/search'
-      path: '/search'
-      fullPath: '/admin/search'
-      preLoaderRoute: typeof AdminSearchRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/library': {
-      id: '/admin/library'
-      path: '/library'
-      fullPath: '/admin/library'
-      preLoaderRoute: typeof AdminLibraryRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/admin/knowledge-gaps': {
-      id: '/admin/knowledge-gaps'
-      path: '/knowledge-gaps'
-      fullPath: '/admin/knowledge-gaps'
-      preLoaderRoute: typeof AdminKnowledgeGapsRouteImport
+    '/admin/analytics': {
+      id: '/admin/analytics'
+      path: '/analytics'
+      fullPath: '/admin/analytics'
+      preLoaderRoute: typeof AdminAnalyticsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/departments': {
@@ -805,109 +756,67 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminDepartmentsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/analytics': {
-      id: '/admin/analytics'
-      path: '/analytics'
-      fullPath: '/admin/analytics'
-      preLoaderRoute: typeof AdminAnalyticsRouteImport
+    '/admin/knowledge-gaps': {
+      id: '/admin/knowledge-gaps'
+      path: '/knowledge-gaps'
+      fullPath: '/admin/knowledge-gaps'
+      preLoaderRoute: typeof AdminKnowledgeGapsRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/admin/knowledge/': {
-      id: '/admin/knowledge/'
-      path: '/knowledge'
-      fullPath: '/admin/knowledge/'
-      preLoaderRoute: typeof AdminKnowledgeIndexRouteImport
+    '/admin/library': {
+      id: '/admin/library'
+      path: '/library'
+      fullPath: '/admin/library'
+      preLoaderRoute: typeof AdminLibraryRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/admin/search': {
+      id: '/admin/search'
+      path: '/search'
+      fullPath: '/admin/search'
+      preLoaderRoute: typeof AdminSearchRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/api/chat': {
+      id: '/api/chat'
+      path: '/api/chat'
+      fullPath: '/api/chat'
+      preLoaderRoute: typeof ApiChatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/departments': {
+      id: '/api/departments'
+      path: '/api/departments'
+      fullPath: '/api/departments'
+      preLoaderRoute: typeof ApiDepartmentsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/me': {
+      id: '/api/me'
+      path: '/api/me'
+      fullPath: '/api/me'
+      preLoaderRoute: typeof ApiMeRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/admin/conversations/': {
       id: '/admin/conversations/'
       path: '/conversations'
       fullPath: '/admin/conversations/'
       preLoaderRoute: typeof AdminConversationsIndexRouteImport
-      parentRoute: typeof AdminRoute
-    }
-    '/api/library/tree': {
-      id: '/api/library/tree'
-      path: '/api/library/tree'
-      fullPath: '/api/library/tree'
-      preLoaderRoute: typeof ApiLibraryTreeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/library/ask': {
-      id: '/api/library/ask'
-      path: '/api/library/ask'
-      fullPath: '/api/library/ask'
-      preLoaderRoute: typeof ApiLibraryAskRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/cron/conversations': {
-      id: '/api/cron/conversations'
-      path: '/api/cron/conversations'
-      fullPath: '/api/cron/conversations'
-      preLoaderRoute: typeof ApiCronConversationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/chat/intent': {
-      id: '/api/chat/intent'
-      path: '/intent'
-      fullPath: '/api/chat/intent'
-      preLoaderRoute: typeof ApiChatIntentRouteImport
-      parentRoute: typeof ApiChatRoute
-    }
-    '/api/admin/users': {
-      id: '/api/admin/users'
-      path: '/api/admin/users'
-      fullPath: '/api/admin/users'
-      preLoaderRoute: typeof ApiAdminUsersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/admin/settings': {
-      id: '/api/admin/settings'
-      path: '/api/admin/settings'
-      fullPath: '/api/admin/settings'
-      preLoaderRoute: typeof ApiAdminSettingsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/admin/knowledge': {
-      id: '/api/admin/knowledge'
-      path: '/api/admin/knowledge'
-      fullPath: '/api/admin/knowledge'
-      preLoaderRoute: typeof ApiAdminKnowledgeRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/admin/gaps': {
-      id: '/api/admin/gaps'
-      path: '/api/admin/gaps'
-      fullPath: '/api/admin/gaps'
-      preLoaderRoute: typeof ApiAdminGapsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/admin/departments': {
-      id: '/api/admin/departments'
-      path: '/api/admin/departments'
-      fullPath: '/api/admin/departments'
-      preLoaderRoute: typeof ApiAdminDepartmentsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/admin/conversations': {
-      id: '/api/admin/conversations'
-      path: '/api/admin/conversations'
-      fullPath: '/api/admin/conversations'
-      preLoaderRoute: typeof ApiAdminConversationsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/admin/activity': {
-      id: '/api/admin/activity'
-      path: '/api/admin/activity'
-      fullPath: '/api/admin/activity'
-      preLoaderRoute: typeof ApiAdminActivityRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/admin/knowledge/$id': {
-      id: '/admin/knowledge/$id'
-      path: '/knowledge/$id'
-      fullPath: '/admin/knowledge/$id'
-      preLoaderRoute: typeof AdminKnowledgeIdRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/conversations/$id': {
@@ -917,81 +826,144 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminConversationsIdRouteImport
       parentRoute: typeof AdminRoute
     }
-    '/api/library/file/$id': {
-      id: '/api/library/file/$id'
-      path: '/api/library/file/$id'
-      fullPath: '/api/library/file/$id'
-      preLoaderRoute: typeof ApiLibraryFileIdRouteImport
+    '/admin/knowledge/': {
+      id: '/admin/knowledge/'
+      path: '/knowledge'
+      fullPath: '/admin/knowledge/'
+      preLoaderRoute: typeof AdminKnowledgeIndexRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/knowledge/$id': {
+      id: '/admin/knowledge/$id'
+      path: '/knowledge/$id'
+      fullPath: '/admin/knowledge/$id'
+      preLoaderRoute: typeof AdminKnowledgeIdRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/api/admin/activity': {
+      id: '/api/admin/activity'
+      path: '/api/admin/activity'
+      fullPath: '/api/admin/activity'
+      preLoaderRoute: typeof ApiAdminActivityRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/library/document/$id': {
-      id: '/api/library/document/$id'
-      path: '/api/library/document/$id'
-      fullPath: '/api/library/document/$id'
-      preLoaderRoute: typeof ApiLibraryDocumentIdRouteImport
+    '/api/admin/conversations': {
+      id: '/api/admin/conversations'
+      path: '/api/admin/conversations'
+      fullPath: '/api/admin/conversations'
+      preLoaderRoute: typeof ApiAdminConversationsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/reset/verify': {
-      id: '/api/auth/reset/verify'
-      path: '/api/auth/reset/verify'
-      fullPath: '/api/auth/reset/verify'
-      preLoaderRoute: typeof ApiAuthResetVerifyRouteImport
+    '/api/admin/departments': {
+      id: '/api/admin/departments'
+      path: '/api/admin/departments'
+      fullPath: '/api/admin/departments'
+      preLoaderRoute: typeof ApiAdminDepartmentsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/reset/send': {
-      id: '/api/auth/reset/send'
-      path: '/api/auth/reset/send'
-      fullPath: '/api/auth/reset/send'
-      preLoaderRoute: typeof ApiAuthResetSendRouteImport
+    '/api/admin/gaps': {
+      id: '/api/admin/gaps'
+      path: '/api/admin/gaps'
+      fullPath: '/api/admin/gaps'
+      preLoaderRoute: typeof ApiAdminGapsRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/auth/reset/confirm': {
-      id: '/api/auth/reset/confirm'
-      path: '/api/auth/reset/confirm'
-      fullPath: '/api/auth/reset/confirm'
-      preLoaderRoute: typeof ApiAuthResetConfirmRouteImport
+    '/api/admin/knowledge': {
+      id: '/api/admin/knowledge'
+      path: '/api/admin/knowledge'
+      fullPath: '/api/admin/knowledge'
+      preLoaderRoute: typeof ApiAdminKnowledgeRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/admin/users/$id': {
-      id: '/api/admin/users/$id'
+    '/api/admin/settings': {
+      id: '/api/admin/settings'
+      path: '/api/admin/settings'
+      fullPath: '/api/admin/settings'
+      preLoaderRoute: typeof ApiAdminSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/users': {
+      id: '/api/admin/users'
+      path: '/api/admin/users'
+      fullPath: '/api/admin/users'
+      preLoaderRoute: typeof ApiAdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/chat/intent': {
+      id: '/api/chat/intent'
+      path: '/intent'
+      fullPath: '/api/chat/intent'
+      preLoaderRoute: typeof ApiChatIntentRouteImport
+      parentRoute: typeof ApiChatRoute
+    }
+    '/api/cron/conversations': {
+      id: '/api/cron/conversations'
+      path: '/api/cron/conversations'
+      fullPath: '/api/cron/conversations'
+      preLoaderRoute: typeof ApiCronConversationsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/library/ask': {
+      id: '/api/library/ask'
+      path: '/api/library/ask'
+      fullPath: '/api/library/ask'
+      preLoaderRoute: typeof ApiLibraryAskRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/library/tree': {
+      id: '/api/library/tree'
+      path: '/api/library/tree'
+      fullPath: '/api/library/tree'
+      preLoaderRoute: typeof ApiLibraryTreeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/analytics/knowledge': {
+      id: '/api/admin/analytics/knowledge'
+      path: '/api/admin/analytics/knowledge'
+      fullPath: '/api/admin/analytics/knowledge'
+      preLoaderRoute: typeof ApiAdminAnalyticsKnowledgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/conversations/$id': {
+      id: '/api/admin/conversations/$id'
       path: '/$id'
-      fullPath: '/api/admin/users/$id'
-      preLoaderRoute: typeof ApiAdminUsersIdRouteImport
-      parentRoute: typeof ApiAdminUsersRoute
+      fullPath: '/api/admin/conversations/$id'
+      preLoaderRoute: typeof ApiAdminConversationsIdRouteImport
+      parentRoute: typeof ApiAdminConversationsRoute
     }
-    '/api/admin/system/status': {
-      id: '/api/admin/system/status'
-      path: '/api/admin/system/status'
-      fullPath: '/api/admin/system/status'
-      preLoaderRoute: typeof ApiAdminSystemStatusRouteImport
-      parentRoute: typeof rootRouteImport
+    '/api/admin/conversations/bulk-delete': {
+      id: '/api/admin/conversations/bulk-delete'
+      path: '/bulk-delete'
+      fullPath: '/api/admin/conversations/bulk-delete'
+      preLoaderRoute: typeof ApiAdminConversationsBulkDeleteRouteImport
+      parentRoute: typeof ApiAdminConversationsRoute
     }
-    '/api/admin/library/tree': {
-      id: '/api/admin/library/tree'
-      path: '/api/admin/library/tree'
-      fullPath: '/api/admin/library/tree'
-      preLoaderRoute: typeof ApiAdminLibraryTreeRouteImport
-      parentRoute: typeof rootRouteImport
+    '/api/admin/departments/$id': {
+      id: '/api/admin/departments/$id'
+      path: '/$id'
+      fullPath: '/api/admin/departments/$id'
+      preLoaderRoute: typeof ApiAdminDepartmentsIdRouteImport
+      parentRoute: typeof ApiAdminDepartmentsRoute
     }
-    '/api/admin/library/folders': {
-      id: '/api/admin/library/folders'
-      path: '/api/admin/library/folders'
-      fullPath: '/api/admin/library/folders'
-      preLoaderRoute: typeof ApiAdminLibraryFoldersRouteImport
-      parentRoute: typeof rootRouteImport
+    '/api/admin/gaps/$id': {
+      id: '/api/admin/gaps/$id'
+      path: '/$id'
+      fullPath: '/api/admin/gaps/$id'
+      preLoaderRoute: typeof ApiAdminGapsIdRouteImport
+      parentRoute: typeof ApiAdminGapsRoute
     }
-    '/api/admin/library/chat': {
-      id: '/api/admin/library/chat'
-      path: '/api/admin/library/chat'
-      fullPath: '/api/admin/library/chat'
-      preLoaderRoute: typeof ApiAdminLibraryChatRouteImport
-      parentRoute: typeof rootRouteImport
+    '/api/admin/gaps/bulk-delete': {
+      id: '/api/admin/gaps/bulk-delete'
+      path: '/bulk-delete'
+      fullPath: '/api/admin/gaps/bulk-delete'
+      preLoaderRoute: typeof ApiAdminGapsBulkDeleteRouteImport
+      parentRoute: typeof ApiAdminGapsRoute
     }
-    '/api/admin/knowledge/stats': {
-      id: '/api/admin/knowledge/stats'
-      path: '/stats'
-      fullPath: '/api/admin/knowledge/stats'
-      preLoaderRoute: typeof ApiAdminKnowledgeStatsRouteImport
+    '/api/admin/knowledge/$id': {
+      id: '/api/admin/knowledge/$id'
+      path: '/$id'
+      fullPath: '/api/admin/knowledge/$id'
+      preLoaderRoute: typeof ApiAdminKnowledgeIdRouteImport
       parentRoute: typeof ApiAdminKnowledgeRoute
     }
     '/api/admin/knowledge/search': {
@@ -1001,61 +973,89 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminKnowledgeSearchRouteImport
       parentRoute: typeof ApiAdminKnowledgeRoute
     }
-    '/api/admin/knowledge/$id': {
-      id: '/api/admin/knowledge/$id'
-      path: '/$id'
-      fullPath: '/api/admin/knowledge/$id'
-      preLoaderRoute: typeof ApiAdminKnowledgeIdRouteImport
+    '/api/admin/knowledge/stats': {
+      id: '/api/admin/knowledge/stats'
+      path: '/stats'
+      fullPath: '/api/admin/knowledge/stats'
+      preLoaderRoute: typeof ApiAdminKnowledgeStatsRouteImport
       parentRoute: typeof ApiAdminKnowledgeRoute
     }
-    '/api/admin/gaps/bulk-delete': {
-      id: '/api/admin/gaps/bulk-delete'
-      path: '/bulk-delete'
-      fullPath: '/api/admin/gaps/bulk-delete'
-      preLoaderRoute: typeof ApiAdminGapsBulkDeleteRouteImport
-      parentRoute: typeof ApiAdminGapsRoute
-    }
-    '/api/admin/gaps/$id': {
-      id: '/api/admin/gaps/$id'
-      path: '/$id'
-      fullPath: '/api/admin/gaps/$id'
-      preLoaderRoute: typeof ApiAdminGapsIdRouteImport
-      parentRoute: typeof ApiAdminGapsRoute
-    }
-    '/api/admin/departments/$id': {
-      id: '/api/admin/departments/$id'
-      path: '/$id'
-      fullPath: '/api/admin/departments/$id'
-      preLoaderRoute: typeof ApiAdminDepartmentsIdRouteImport
-      parentRoute: typeof ApiAdminDepartmentsRoute
-    }
-    '/api/admin/conversations/bulk-delete': {
-      id: '/api/admin/conversations/bulk-delete'
-      path: '/bulk-delete'
-      fullPath: '/api/admin/conversations/bulk-delete'
-      preLoaderRoute: typeof ApiAdminConversationsBulkDeleteRouteImport
-      parentRoute: typeof ApiAdminConversationsRoute
-    }
-    '/api/admin/conversations/$id': {
-      id: '/api/admin/conversations/$id'
-      path: '/$id'
-      fullPath: '/api/admin/conversations/$id'
-      preLoaderRoute: typeof ApiAdminConversationsIdRouteImport
-      parentRoute: typeof ApiAdminConversationsRoute
-    }
-    '/api/admin/analytics/knowledge': {
-      id: '/api/admin/analytics/knowledge'
-      path: '/api/admin/analytics/knowledge'
-      fullPath: '/api/admin/analytics/knowledge'
-      preLoaderRoute: typeof ApiAdminAnalyticsKnowledgeRouteImport
+    '/api/admin/library/chat': {
+      id: '/api/admin/library/chat'
+      path: '/api/admin/library/chat'
+      fullPath: '/api/admin/library/chat'
+      preLoaderRoute: typeof ApiAdminLibraryChatRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/api/admin/library/resources/$id': {
-      id: '/api/admin/library/resources/$id'
-      path: '/api/admin/library/resources/$id'
-      fullPath: '/api/admin/library/resources/$id'
-      preLoaderRoute: typeof ApiAdminLibraryResourcesIdRouteImport
+    '/api/admin/library/folders': {
+      id: '/api/admin/library/folders'
+      path: '/api/admin/library/folders'
+      fullPath: '/api/admin/library/folders'
+      preLoaderRoute: typeof ApiAdminLibraryFoldersRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/library/tree': {
+      id: '/api/admin/library/tree'
+      path: '/api/admin/library/tree'
+      fullPath: '/api/admin/library/tree'
+      preLoaderRoute: typeof ApiAdminLibraryTreeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/system/status': {
+      id: '/api/admin/system/status'
+      path: '/api/admin/system/status'
+      fullPath: '/api/admin/system/status'
+      preLoaderRoute: typeof ApiAdminSystemStatusRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/users/$id': {
+      id: '/api/admin/users/$id'
+      path: '/$id'
+      fullPath: '/api/admin/users/$id'
+      preLoaderRoute: typeof ApiAdminUsersIdRouteImport
+      parentRoute: typeof ApiAdminUsersRoute
+    }
+    '/api/auth/reset/confirm': {
+      id: '/api/auth/reset/confirm'
+      path: '/api/auth/reset/confirm'
+      fullPath: '/api/auth/reset/confirm'
+      preLoaderRoute: typeof ApiAuthResetConfirmRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/reset/send': {
+      id: '/api/auth/reset/send'
+      path: '/api/auth/reset/send'
+      fullPath: '/api/auth/reset/send'
+      preLoaderRoute: typeof ApiAuthResetSendRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/reset/verify': {
+      id: '/api/auth/reset/verify'
+      path: '/api/auth/reset/verify'
+      fullPath: '/api/auth/reset/verify'
+      preLoaderRoute: typeof ApiAuthResetVerifyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/library/document/$id': {
+      id: '/api/library/document/$id'
+      path: '/api/library/document/$id'
+      fullPath: '/api/library/document/$id'
+      preLoaderRoute: typeof ApiLibraryDocumentIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/library/file/$id': {
+      id: '/api/library/file/$id'
+      path: '/api/library/file/$id'
+      fullPath: '/api/library/file/$id'
+      preLoaderRoute: typeof ApiLibraryFileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/admin/knowledge/$id/chunks': {
+      id: '/api/admin/knowledge/$id/chunks'
+      path: '/chunks'
+      fullPath: '/api/admin/knowledge/$id/chunks'
+      preLoaderRoute: typeof ApiAdminKnowledgeIdChunksRouteImport
+      parentRoute: typeof ApiAdminKnowledgeIdRoute
     }
     '/api/admin/knowledge/$id/retry': {
       id: '/api/admin/knowledge/$id/retry'
@@ -1064,12 +1064,12 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAdminKnowledgeIdRetryRouteImport
       parentRoute: typeof ApiAdminKnowledgeIdRoute
     }
-    '/api/admin/knowledge/$id/chunks': {
-      id: '/api/admin/knowledge/$id/chunks'
-      path: '/chunks'
-      fullPath: '/api/admin/knowledge/$id/chunks'
-      preLoaderRoute: typeof ApiAdminKnowledgeIdChunksRouteImport
-      parentRoute: typeof ApiAdminKnowledgeIdRoute
+    '/api/admin/library/resources/$id': {
+      id: '/api/admin/library/resources/$id'
+      path: '/api/admin/library/resources/$id'
+      fullPath: '/api/admin/library/resources/$id'
+      preLoaderRoute: typeof ApiAdminLibraryResourcesIdRouteImport
+      parentRoute: typeof rootRouteImport
     }
   }
 }
